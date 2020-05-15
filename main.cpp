@@ -44,10 +44,14 @@ int main()
 {
 	// register signal SIGINT and signal handler  
 	signal(SIGINT, signalHandler);
-
-	std::ofstream rawfile;
-	std::ofstream filtfile;
 	
+
+
+
+	/* ------------------------------------------
+	 * ------------CONFIGURE HARDWARE------------
+	   ------------------------------------------*/
+
 	// 0. enumerate devices (list all devices' information)
 	SoapySDR::KwargsList results = SoapySDR::Device::enumerate();
 	SoapySDR::Kwargs::iterator it;
@@ -104,7 +108,7 @@ int main()
 
 	// 3. apply settings
 	sdr->setGainMode(SOAPY_SDR_RX, 0, false);
-	for (auto const& gain : str_list) {
+	for (auto const& gain : str_list) {	// Configure each gain stage
 		if (gain == "LNA") {
 			sdr->setGain(SOAPY_SDR_RX, 0, gain, 20);
 			std::cout << gain << ": " << sdr->getGain(SOAPY_SDR_RX, 0, gain) << std::endl;
@@ -134,42 +138,65 @@ int main()
 	// 5. create a re-usable buffer for rx samples
 	complex<float> buff[RX_BUF_SIZE];
 
+
+
+
+	/* -----------------------------------------
+	 * ---------BEGIN SIGNAL PROCESSING---------
+	   -----------------------------------------*/
+
+	// Configure output files for data so that it can be read into GNU Radio file source blocks for debugging (temporary)
+	std::ofstream rawfile;
+	std::ofstream filtfile;
 	rawfile.open("/home/philip/Desktop/soapy_raw_output.bin", std::ios::out | std::ios::binary);
 	filtfile.open("/home/philip/Desktop/soapy_filt_output.bin", std::ios::out | std::ios::binary);
 
-	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0), SENSOR_BW/2, sdr->getFrequency(SOAPY_SDR_RX, 0)-SIG_FREQ);
+	// Configure IF (complex LPF with frequency Xlation) and BB (HPF) filters
+	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0), SENSOR_BW/2,
+			sdr->getFrequency(SOAPY_SDR_RX, 0)-SIG_FREQ);	// Includes frequency translation.
+															// The HackRF One samples have significant DC noise, so
+															// tuning the hardware to some offset frequency and translating
+															// the signal back to FFT center in the digital domain greatly
+															// improves SNR.
 	Filter<float> BBfilter(HPF, BB_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0)/IF_DECIMATION, BB_FILT_CUTOFF);
+
+	// Configure sample counters for managing IF and BB decimation
 	unsigned int if_decimation_count = 0;
 	unsigned int bb_decimation_count = 0;
 
+	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
+	// The decoder computes more accurate SPS estimations per-message using sync bits
+	// for overall SPS accuracy throughout the message.
 	Decode345 decoder(SPS);
 
-	// 6. receive some samples
+	// Loop through sample buffers until sample stream is terminated
 	while (not_terminated) {
 		void *buffs[] = {buff};
 		int flags;
 		long long time_ns;
+
+		// Read samples into buffer
 		int ret = sdr->readStream(rx_stream, buffs, RX_BUF_SIZE, flags, time_ns, 1e5);
 		//printf("ret = %d, flags = %d, time_ns = %lld\n", ret, flags, time_ns);
 		
-		if (ret < 0) {
+		if (ret < 0) {	// Report stream errors
 			if (ret == SOAPY_SDR_OVERFLOW) {
 				cout << "-----OVERFLOW-----" << endl;
 			} else if (ret != SOAPY_SDR_TIMEOUT) {
 				cout << "Unknown readStream return code " << ret << endl;
 			}
-		} else {
+		} else {	// If sample stream is intact, process samples in buffer
 			for (auto const& sample : buff) {
 				/*auto tmp_cmp = sample.real();
 				rawfile.write((char *)&tmp_cmp, sizeof(float));
 				tmp_cmp = sample.imag();
 				rawfile.write((char *)&tmp_cmp, sizeof(float));*/
 
-				// Apply frequency translation and lowpass filter IF
+				// Apply frequency translation and lowpass filter to IF
 				auto filt_samp = IFfilter.compute(sample);
 				if_decimation_count++;
 
-				// Decimate signal
+				// Decimate IF signal
 				if (if_decimation_count == IF_DECIMATION) {
 					if_decimation_count = 0;
 
@@ -182,11 +209,12 @@ int main()
 					//auto tmp_cmp = filt_samp.real()*filt_samp.real() + filt_samp.imag()*filt_samp.imag();
 					//rawfile.write((char *)&tmp_cmp, sizeof(float));
 
-					// Compute magnitude and apply highpass filter
+					// Compute magnitude (BB) and apply highpass filter to center signal at zero.
+					// This allows BB pulse widths to be determined by tracking zero-crossings.
 					auto BB_filt_samp = BBfilter.compute(filt_samp.real()*filt_samp.real() + filt_samp.imag()*filt_samp.imag());
 					bb_decimation_count++;
 
-					// Decimate signal
+					// Decimate BB signal
 					if (bb_decimation_count == BB_DECIMATION) {
 						bb_decimation_count = 0;
 

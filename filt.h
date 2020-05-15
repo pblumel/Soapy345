@@ -47,6 +47,8 @@ Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const 
 
 	shift_register = new T[this->num_taps];
 
+	// Determine number of LO samples to generate for frequency xlation such that there are no discontinuities
+	// TODO: Improve handling of maximum xlation steps
 	while ((abs(xlation_freq)*num_xlation_steps) % samp_rate != 0) {
 		num_xlation_steps++;
 
@@ -84,16 +86,19 @@ Filter<T>::~Filter() {
 
 template <>
 std::complex<float> Filter<std::complex<float>>::compute(const std::complex<float>& sample) {
+	// Shift in new sample
 	for (unsigned int i = num_taps-1; i > 0; i--) {
 		shift_register[i] = shift_register[i-1];
 	}
 	shift_register[0] = sample;
 
+	// If frequency translation is enabled, mix new sample with digital LO
 	if (normalized_xlation_freq != 0.0) {
 		shift_register[0] *= std::complex<float>(cos(xlation_step * normalized_xlation_freq), sin(xlation_step * normalized_xlation_freq));
 		xlation_step = (xlation_step+1) % num_xlation_steps;
 	}
 
+	// Compute filtered output sample
 	std::complex<float> sum(0.0, 0.0);
 	for (unsigned int i = 0; i < num_taps; i++) {
 		sum += shift_register[i] * taps[i];
@@ -104,16 +109,19 @@ std::complex<float> Filter<std::complex<float>>::compute(const std::complex<floa
 
 template <>
 float Filter<float>::compute(const float& sample) {
+	// Shift in new sample
 	for (unsigned int i = num_taps-1; i > 0; i--) {
 		shift_register[i] = shift_register[i-1];
 	}
 	shift_register[0] = sample;
 
+	// If frequency translation is enabled, mix new sample with digital LO
 	if (normalized_xlation_freq != 0.0) {
 		shift_register[0] *= cos(xlation_step * normalized_xlation_freq);
 		xlation_step = (xlation_step+1) % num_xlation_steps;
 	}
 
+	// Compute filtered output sample
 	float sum = 0.0;
 	for (unsigned int i = 0; i < num_taps; i++) {
 		sum += shift_register[i] * taps[i];
