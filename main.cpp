@@ -40,8 +40,7 @@ void signalHandler(int signum) {
 }
 
 
-int main()
-{
+int main() {
 	// register signal SIGINT and signal handler  
 	signal(SIGINT, signalHandler);
 	

@@ -1,21 +1,24 @@
 #ifndef DECODE345_H_
 #define DECODE345_H_
 
-#define SYNC_LEN (32-2)	// Length of sync sequence with manchester encoding shortened due to two ignored sync bits
+#include "SymbolLenTracker.h"
+
+#define SYNC_LEN 32-2	// Length of sync sequence with manchester encoding shortened due to two ignored sync bits
 #define SYNC_LEVELS_FORMAT 0x55555556	// Sync sequence with manchester encoding
 #define SYNC_LEVEL_MASK 0x3FFFFFFF	// First couple bits are inconsistent on some sensors
 
-enum messageState {SYNC, VENDOR, HEADER, TXID, SENSOR_STATE_CRC};
+enum messageState {SYNC, VENDOR, HEADER, TXID, SENSOR_STATE, CRC};
 
 class Decode345 {
 public:
-	Decode345(const unsigned int& est_symbol_len) : est_symbol_len(est_symbol_len), avg_symbol_len(est_symbol_len) {};
+	Decode345(const unsigned int& est_symbol_len) :
+		symbol_len_tracker(SymbolLenTracker<unsigned int>(SYNC_LEN-1, est_symbol_len)) {};
+					// -1 slot is required because 11b in the manchester sync sequence only takes 1 slot
 	void push(const float& sample);
 private:
-	unsigned int est_symbol_len;	// Constant for this execution cycle
-	unsigned int avg_symbol_len;	// For now use the estimated length, will calculate per-sensor value
-	//std::vector<unsigned int> symbol_len_tracker(SYNC_LEN);	// Shortened window size due to ignored sync bits
-	float prev_sample {0.0};
+	const bool symbolChanged(const float& sample) const;
+	SymbolLenTracker<unsigned int> symbol_len_tracker;	// Shortened window size due to ignored sync bits
+	float prev_sample {1.0};
 	messageState message_state {SYNC};
 	unsigned int rx_sync_sr {};
 };
