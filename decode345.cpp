@@ -1,5 +1,6 @@
 #include "decode345.h"
 #include <iostream>
+#include <iomanip>
 
 
 void Decode345::push(const float& sample) {
@@ -37,6 +38,7 @@ void Decode345::push(const float& sample) {
 					}
 
 					// DEBUG OUTPUT
+					std::cout << std::endl;
 					if (current_vendor == UNKNOWN) {
 						std::cout << "No known vendor uses channel " << channel << ", may cause CRC failure." << std::endl;
 					} else if (current_vendor == HONEYWELL) {
@@ -50,18 +52,44 @@ void Decode345::push(const float& sample) {
 
 				break;
 			case TXID:
-				message_state = SYNC;
-				symbol_len_tracker.resetSyncAvg();
+				manchester_decoder.add(symbol_state);
+
+				if (manchester_decoder.size() == 20) {	// TXID is 20 unencoded bits
+					auto hex_txid = manchester_decoder.pop_all();
+
+					// DEBUG OUTPUT
+					std::cout << "TXID " << std::setfill('0') << std::setw(3) << (hex_txid/10000) << "-" << std::setw(4) << (hex_txid%10000) << std::endl;
+
+					message_state = SENSOR_STATE;
+				}
+
 				break;
 			case SENSOR_STATE:
-				message_state = SYNC;
-				symbol_len_tracker.resetSyncAvg();
+				manchester_decoder.add(symbol_state);
+
+				if (manchester_decoder.size() == 8) {	// Sensor state is 8 unencoded bits
+
+					// DEBUG OUTPUT
+					std::cout << "SENSOR STATE 0x" << std::setfill('0') << std::setw(2) << std::hex << manchester_decoder.pop_all() << std::dec << std::endl;
+
+					message_state = CRC;
+				}
+
 				break;
 			case CRC:
-				message_state = SYNC;
-				symbol_len_tracker.resetSyncAvg();
+				manchester_decoder.add(symbol_state);
+
+				if (manchester_decoder.size() == 16) {	// CRC is 16 unencoded bits
+
+					// DEBUG OUTPUT
+					std::cout << "RX CRC 0x" << std::setfill('0') << std::setw(4) << std::hex << manchester_decoder.pop_all() << std::dec << std::endl;
+
+					// Message received, reset and wait for next message
+					message_state = SYNC;
+					symbol_len_tracker.resetSyncAvg();
+				}
+
 				break;
-				// TODO: When we find an abort condition, remember to reset average to estimated value
 			default:
 				std::cerr << "Decode345 unimplemented state machine state " << message_state << std::endl;
 				throw 1;
