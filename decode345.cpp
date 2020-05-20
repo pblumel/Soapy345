@@ -1,4 +1,5 @@
 #include "decode345.h"
+#include <iostream>
 
 
 void Decode345::push(const float& sample) {
@@ -23,23 +24,44 @@ void Decode345::push(const float& sample) {
 					// Last pulse(s) are double width due to 0xFFFE pattern, ignore them
 					//avg_symbol_len = sum(self.symbol_len[:-2]) / (len(self.symbol_len)-2);
 					symbol_len_tracker.computeSyncAvg();
-					message_state = VENDOR;
+					message_state = CHANNEL;
 				}
 
 				break;
-			case VENDOR:
-				message_state = SYNC;
-				symbol_len_tracker.resetSyncAvg();
+			case CHANNEL:
+				try {
+					manchester_decoder.add(symbol_state);
+				} catch (ManchesterExceptions& e) {
+					// If manchester decoding fails, this message cannot be processed
+					message_state = SYNC;
+					symbol_len_tracker.resetSyncAvg();
+					break;
+				}
+
+				if (manchester_decoder.size() == 4) {	// Channel is 4 unencoded bits
+					auto channel = manchester_decoder.pop_all();
+					if (channel < NUM_CHANNELS) {	// Prevent exceeding array bounds
+						current_vendor = vendor_channel_map[channel];
+					}
+
+					// DEBUG OUTPUT
+					if (current_vendor == UNKNOWN) {
+						std::cout << "No known vendor uses channel " << channel << ", may cause CRC failure." << std::endl;
+					} else if (current_vendor == HONEYWELL) {
+						std::cout << "Vendor HONEYWELL" << std::endl;
+					} else if (current_vendor == TWOGIG) {
+						std::cout << "Vendor 2GIG" << std::endl;
+					}
+
+					message_state = TXID;
+				}
+
 				break;
-			case HEADER:
+			case TXID:
 				message_state = SYNC;
 				symbol_len_tracker.resetSyncAvg();
 				break;
 			case SENSOR_STATE:
-				message_state = SYNC;
-				symbol_len_tracker.resetSyncAvg();
-				break;
-			case TXID:
 				message_state = SYNC;
 				symbol_len_tracker.resetSyncAvg();
 				break;
@@ -48,6 +70,9 @@ void Decode345::push(const float& sample) {
 				symbol_len_tracker.resetSyncAvg();
 				break;
 				// TODO: When we find an abort condition, remember to reset average to estimated value
+			default:
+				std::cerr << "Decode345 unimplemented state machine state " << message_state << std::endl;
+				throw 1;
 		}
 	}
 
