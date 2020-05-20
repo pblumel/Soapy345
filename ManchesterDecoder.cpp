@@ -20,10 +20,14 @@ void ManchesterDecoder::add(const bool& symbol_state) {
 		try {
 			// Shift the new decoded bit into the output data
 			output_data = (output_data<<1) | decode(first_state, symbol_state);
-		} catch (ManchesterExceptions& e) {	// Reset decoder if decoding fails
-			// It is known that this invalid sequence should not come from the transmitter
-			// Just ignore the more recent state and try decoding first_state with the next state
-			// This assumption can be verified by CRC later
+		} catch (ManchesterExceptions& e) {
+			/*	Invalid manchester sequence 00 or 11 was identified
+			 *	It is known that this invalid sequence should not come from the transmitter now that
+			 *		the receiver is synced to the transmitter via sync bits
+			 *	A single pulse must have been confused for a double pulse, so ignore the more recent
+			 *		state and try decoding first_state with the next state
+			 *	This assumption will be verified by CRC later
+			 */
 		}
 
 		output_size++;

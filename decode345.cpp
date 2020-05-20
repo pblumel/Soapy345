@@ -22,21 +22,13 @@ void Decode345::push(const float& sample) {
 				if (!((rx_sync_sr ^ SYNC_LEVELS_FORMAT) & SYNC_LEVEL_MASK)) {
 					// Determine the pulse width for this transmitter to read following bits
 					// Last pulse(s) are double width due to 0xFFFE pattern, ignore them
-					//avg_symbol_len = sum(self.symbol_len[:-2]) / (len(self.symbol_len)-2);
 					symbol_len_tracker.computeSyncAvg();
 					message_state = CHANNEL;
 				}
 
 				break;
 			case CHANNEL:
-				try {
-					manchester_decoder.add(symbol_state);
-				} catch (ManchesterExceptions& e) {
-					// If manchester decoding fails, this message cannot be processed
-					message_state = SYNC;
-					symbol_len_tracker.resetSyncAvg();
-					break;
-				}
+				manchester_decoder.add(symbol_state);
 
 				if (manchester_decoder.size() == 4) {	// Channel is 4 unencoded bits
 					auto channel = manchester_decoder.pop_all();
