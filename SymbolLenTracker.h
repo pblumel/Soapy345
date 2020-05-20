@@ -46,7 +46,7 @@ void SymbolLenTracker<T>::operator++(int) const {
 template <typename T>
 const unsigned int SymbolLenTracker<T>::getCurSymbolCount() const {
 	unsigned int symbol_count = symbol_lengths[front]/avg_symbol_len;
-	if (remainderf(symbol_lengths[front], avg_symbol_len) > (avg_symbol_len/2.0)) {
+	if (fmod(symbol_lengths[front], avg_symbol_len) > (avg_symbol_len/2.0)) {
 		symbol_count++;
 	}
 
