@@ -21,8 +21,9 @@ void ManchesterDecoder::add(const bool& symbol_state) {
 			// Shift the new decoded bit into the output data
 			output_data = (output_data<<1) | decode(first_state, symbol_state);
 		} catch (ManchesterExceptions& e) {	// Reset decoder if decoding fails
-			this->clear();
-			throw e;
+			// It is known that this invalid sequence should not come from the transmitter
+			// Just ignore the more recent state and try decoding first_state with the next state
+			// This assumption can be verified by CRC later
 		}
 
 		output_size++;
