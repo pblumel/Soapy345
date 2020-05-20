@@ -28,6 +28,7 @@ void ManchesterDecoder::add(const bool& symbol_state) {
 			 *		state and try decoding first_state with the next state
 			 *	This assumption will be verified by CRC later
 			 */
+			return;	// Output data not yet processed and shifted in
 		}
 
 		output_size++;
