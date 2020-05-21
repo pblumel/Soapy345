@@ -26,7 +26,7 @@ template <typename T>
 SymbolLenTracker<T>::SymbolLenTracker(const unsigned int& size, const unsigned int& est_symbol_len) :
 		size(size), est_symbol_len(est_symbol_len), avg_symbol_len(est_symbol_len) {
 
-	symbol_lengths = new unsigned int(size);	// Don't really care to initialize values,
+	symbol_lengths = new unsigned int[size];	// Don't really care to initialize values,
 									// they will be overwritten as values shift in
 }
 
