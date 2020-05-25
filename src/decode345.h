@@ -3,12 +3,18 @@
 
 #include "SymbolLenTracker.h"
 #include "ManchesterDecoder.h"
+#include "crc16.h"
 
 #define SYNC_LEN 32-2	// Length of sync sequence with manchester encoding shortened due to two ignored sync bits
 #define SYNC_LEVELS_FORMAT 0x55555556	// Sync sequence with manchester encoding
 #define SYNC_LEVEL_MASK 0x3FFFFFFF	// First couple bits are inconsistent on some sensors
 
 #define NUM_CHANNELS 32
+
+#define CHANNEL_BITS 4
+#define TXID_BITS 20
+#define SENSOR_STATE_BITS 8
+#define CRC_BITS 16
 
 enum messageState {SYNC, CHANNEL, TXID, SENSOR_STATE, CRC};
 enum vendors {UNKNOWN, HONEYWELL, TWOGIG};
@@ -25,6 +31,7 @@ private:
 	unsigned int rx_sync_sr {};
 	SymbolLenTracker<unsigned int> symbol_len_tracker;	// Shortened window size due to ignored sync bits
 	ManchesterDecoder manchester_decoder;
+	CRC16 crc16;
 	float prev_sample {1.0};
 	messageState message_state {SYNC};
 	const vendors vendor_channel_map[NUM_CHANNELS] {	// A map of channel numbers to the associated vendors

@@ -31,12 +31,15 @@ void Decode345::push(const float& sample) {
 			case CHANNEL:
 				manchester_decoder.add(symbol_state);
 
-				if (manchester_decoder.size() == 4) {	// Channel is 4 unencoded bits
+				if (manchester_decoder.size() == CHANNEL_BITS) {	// Channel is 4 unencoded bits
 					auto channel = manchester_decoder.pop_all();
 					if (channel < NUM_CHANNELS) {	// Prevent exceeding array bounds
 						current_vendor = vendor_channel_map[channel];
 					}
 
+					// Configure CRC checker to settings used by the vendor
+					crc16.reset();
+					crc16.setPoly(0x8005);
 					// DEBUG OUTPUT
 					std::cout << std::endl;
 					if (current_vendor == UNKNOWN) {
@@ -45,7 +48,9 @@ void Decode345::push(const float& sample) {
 						std::cout << "Vendor HONEYWELL" << std::endl;
 					} else if (current_vendor == TWOGIG) {
 						std::cout << "Vendor 2GIG" << std::endl;
+						crc16.setPoly(0x8050);
 					}
+					crc16.push(channel, CHANNEL_BITS);
 
 					message_state = TXID;
 				}
@@ -54,8 +59,9 @@ void Decode345::push(const float& sample) {
 			case TXID:
 				manchester_decoder.add(symbol_state);
 
-				if (manchester_decoder.size() == 20) {	// TXID is 20 unencoded bits
+				if (manchester_decoder.size() == TXID_BITS) {	// TXID is 20 unencoded bits
 					auto hex_txid = manchester_decoder.pop_all();
+					crc16.push(hex_txid, TXID_BITS);
 
 					// DEBUG OUTPUT
 					std::cout << "TXID " << std::setfill('0') << std::setw(3) << (hex_txid/10000) << "-" << std::setw(4) << (hex_txid%10000) << std::endl;
@@ -67,10 +73,12 @@ void Decode345::push(const float& sample) {
 			case SENSOR_STATE:
 				manchester_decoder.add(symbol_state);
 
-				if (manchester_decoder.size() == 8) {	// Sensor state is 8 unencoded bits
+				if (manchester_decoder.size() == SENSOR_STATE_BITS) {	// Sensor state is 8 unencoded bits
+					auto sensor_state = manchester_decoder.pop_all();
+					crc16.push(sensor_state, SENSOR_STATE_BITS);
 
 					// DEBUG OUTPUT
-					std::cout << "SENSOR STATE 0x" << std::setfill('0') << std::setw(2) << std::hex << manchester_decoder.pop_all() << std::dec << std::endl;
+					std::cout << "SENSOR STATE 0x" << std::setfill('0') << std::setw(2) << std::hex << sensor_state << std::dec << std::endl;
 
 					message_state = CRC;
 				}
@@ -79,14 +87,15 @@ void Decode345::push(const float& sample) {
 			case CRC:
 				manchester_decoder.add(symbol_state);
 
-				if (manchester_decoder.size() == 16) {	// CRC is 16 unencoded bits
-
-					// DEBUG OUTPUT
-					std::cout << "RX CRC 0x" << std::setfill('0') << std::setw(4) << std::hex << manchester_decoder.pop_all() << std::dec << std::endl;
-
+				if (manchester_decoder.size() == CRC_BITS) {	// CRC is 16 unencoded bits
 					// Message received, reset and wait for next message
 					message_state = SYNC;
 					symbol_len_tracker.resetSyncAvg();
+
+					// Verify CRC
+					if (manchester_decoder.pop_all() != crc16.getCRC()) {
+						std::cout << "CRC FAIL" << std::endl;
+					}
 				}
 
 				break;
