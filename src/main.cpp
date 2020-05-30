@@ -6,6 +6,7 @@
 
 #include "filt.h"
 #include "decode345.h"
+#include "SensorTracker.h"
 
 #include <iostream>
 #include <fstream>
@@ -167,6 +168,8 @@ int main() {
 	// The decoder computes more accurate SPS estimations per-message using sync bits
 	// for overall SPS accuracy throughout the message.
 	Decode345 decoder(SPS);
+	SensorMessage* sensor_message = nullptr;
+	SensorTracker sensor_tracker;
 
 	// Loop through sample buffers until sample stream is terminated
 	while (not_terminated) {
@@ -218,10 +221,15 @@ int main() {
 						bb_decimation_count = 0;
 
 						//filtfile.write((char *)&BB_filt_samp, sizeof(float));
-						decoder.push(BB_filt_samp);
+						sensor_message = decoder.push(BB_filt_samp);
+
+						// Process this sensor message if it hasn't been already
+						if (!sensor_message->isProcessed()) {
+							sensor_tracker.push(sensor_message->getTXID(), sensor_message->getState());
+							sensor_message->setProcessed();
+						}
 					}
 				}
-
 			}
 		}
 	}
