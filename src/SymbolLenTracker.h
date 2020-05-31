@@ -15,7 +15,7 @@ public:
 	void resetSyncAvg();
 private:
 	T* symbol_lengths {nullptr};
-	unsigned int size;
+	const unsigned int size;
 	unsigned int front {0};
 	const unsigned int est_symbol_len;
 	float avg_symbol_len;	// Calculated per-message value, based on sync
