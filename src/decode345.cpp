@@ -46,8 +46,8 @@ SensorMessage* Decode345::push(const float& sample) {
 					crc16.reset();
 					crc16.setPoly(0x8005);
 					// DEBUG OUTPUT
-					std::cout << std::endl;
 					if (sensor_message.getVendor() == UNKNOWN) {
+						std::cout << std::endl;
 						std::cout << "No known vendor uses channel " << channel << ", may cause CRC failure." << std::endl;
 					} else if (sensor_message.getVendor() == TWOGIG) {
 						crc16.setPoly(0x8050);
@@ -92,7 +92,7 @@ SensorMessage* Decode345::push(const float& sample) {
 					if (manchester_decoder.pop_all() == crc16.getCRC()) {
 						sensor_message.newMessage();	// Declare this message ready for processing
 					} else {
-						std::cout << "CRC FAIL" << std::endl;
+						std::cout << "CRC FAIL FOR DATA 0x" << std::hex << crc16.getData() << std::dec << std::endl;
 					}
 				}
 

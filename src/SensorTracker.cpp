@@ -4,6 +4,20 @@
 #include <iomanip>
 
 
+SensorTracker::~SensorTracker() {	// Print summary of sensor activity
+	std::cout << std::endl;
+	std::cout << "## SENSOR SUMMARY ##" << std::endl;
+	if (sensors.empty()) {
+		std::cout << "NO SENSORS FOUND" << std::endl;
+	} else {
+		for (auto sensor : sensors) {
+			std::cout << "TXID " << std::setfill('0') << std::setw(3) << (sensor.first/10000) << "-" << std::setw(4) << (sensor.first%10000)
+					<< " SEEN " << sensor.second.rx_msg_count << " TIMES, LAST AT " << std::asctime(std::localtime(&sensor.second.last_seen));
+		}
+	}
+}
+
+
 void SensorTracker::push(const unsigned int& txid, const unsigned char& sensor_state) {
 	auto sensor = sensors.find(txid);
 	if (sensor != sensors.end()) {	// Sensor detected previously
@@ -11,14 +25,15 @@ void SensorTracker::push(const unsigned int& txid, const unsigned char& sensor_s
 		sensor->second.last_seen = time(NULL);
 		sensor->second.rx_msg_count++;
 
-		// Output debug info to console
-		std::cout << "## UPDATE TXID " << std::setfill('0') << std::setw(3) << (txid/10000) << "-" << std::setw(4) << (txid%10000) << "  ##" << std::endl;
-		std::cout << "SEEN " << sensor->second.rx_msg_count << " TIMES, NOW " << std::asctime(std::localtime(&sensor->second.last_seen)) << std::endl;
-
 		// Skip updating sensor state if it has not changed
 		if (sensor->second.sensor_state == sensor_state) {
 			return;
 		}
+
+		// Output debug info to console
+		std::cout << std::endl;
+		std::cout << "## UPDATE TXID " << std::setfill('0') << std::setw(3) << (txid/10000) << "-" << std::setw(4) << (txid%10000) << " ##" << std::endl;
+		std::cout << "SEEN " << sensor->second.rx_msg_count << " TIMES, NOW " << std::asctime(std::localtime(&sensor->second.last_seen));
 
 		// Output changes to sensor state to the console
 		unsigned int i = 1;
@@ -45,7 +60,8 @@ void SensorTracker::push(const unsigned int& txid, const unsigned char& sensor_s
 		sensors.insert(std::pair<unsigned int, sensorData>(txid, temp));
 
 		// Output debug info to console
-		std::cout << "## ADD TXID " << std::setfill('0') << std::setw(3) << (txid/10000) << "-" << std::setw(4) << (txid%10000) << "  ##" << std::endl;
+		std::cout << std::endl;
+		std::cout << "## ADD TXID " << std::setfill('0') << std::setw(3) << (txid/10000) << "-" << std::setw(4) << (txid%10000) << " ##" << std::endl;
 
 		// Output initial sensor state to the console
 		unsigned int i = 1;

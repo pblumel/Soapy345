@@ -31,6 +31,7 @@ struct sensorData {
 
 class SensorTracker {
 public:
+	~SensorTracker();
 	void push(const unsigned int& txid, const unsigned char& sensor_state);
 private:
 	std::map<unsigned int, sensorData> sensors;
