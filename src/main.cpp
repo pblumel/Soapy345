@@ -28,6 +28,7 @@
 #define BB_FILT_ORDER 25	// Must be odd for type 1 filter
 #define BB_DECIMATION 2
 
+
 using std::cout;
 using std::endl;
 using std::complex;
@@ -35,8 +36,6 @@ using std::complex;
 bool not_terminated = true;
 
 void signalHandler(int signum) {
-	cout << "Interrupt signal (" << signum << ") received.\n";
-
 	not_terminated = false;
 }
 
@@ -231,7 +230,6 @@ int main() {
 
 	// 8. cleanup device handle
 	SoapySDR::Device::unmake(sdr);
-	printf("Done\n");
 
 	return EXIT_SUCCESS;
 }
