@@ -152,17 +152,13 @@ int main() {
 	filtfile.open("/home/philip/Desktop/soapy_filt_output.bin", std::ios::out | std::ios::binary);
 
 	// Configure IF (complex LPF with frequency Xlation) and BB (HPF) filters
-	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0), SENSOR_BW/2,
+	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0), IF_DECIMATION, SENSOR_BW/2,
 			sdr->getFrequency(SOAPY_SDR_RX, 0)-SIG_FREQ);	// Includes frequency translation.
 															// The HackRF One samples have significant DC noise, so
 															// tuning the hardware to some offset frequency and translating
 															// the signal back to FFT center in the digital domain greatly
 															// improves SNR.
-	Filter<float> BBfilter(HPF, BB_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0)/IF_DECIMATION, BB_FILT_CUTOFF);
-
-	// Configure sample counters for managing IF and BB decimation
-	unsigned int if_decimation_count = 0;
-	unsigned int bb_decimation_count = 0;
+	Filter<float> BBfilter(HPF, BB_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0)/IF_DECIMATION, BB_DECIMATION, BB_FILT_CUTOFF);
 
 	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
 	// The decoder computes more accurate SPS estimations per-message using sync bits
@@ -196,11 +192,7 @@ int main() {
 
 				// Apply frequency translation and lowpass filter to IF
 				auto filt_samp = IFfilter.compute(sample);
-				if_decimation_count++;
-
-				// Decimate IF signal
-				if (if_decimation_count == IF_DECIMATION) {
-					if_decimation_count = 0;
+				if (filt_samp) {	// If a sample has been output after decimation
 
 					/*auto tmp_cmp = filt_samp.real();
 					rawfile.write((char *)&tmp_cmp, sizeof(float));
@@ -213,15 +205,12 @@ int main() {
 
 					// Compute magnitude (BB) and apply highpass filter to center signal at zero.
 					// This allows BB pulse widths to be determined by tracking zero-crossings.
-					auto BB_filt_samp = BBfilter.compute(filt_samp.real()*filt_samp.real() + filt_samp.imag()*filt_samp.imag());
-					bb_decimation_count++;
+					auto BB_filt_samp = BBfilter.compute(filt_samp->real()*filt_samp->real() + filt_samp->imag()*filt_samp->imag());
+					if (BB_filt_samp) {	// If a sample has been output after decimation
 
-					// Decimate BB signal
-					if (bb_decimation_count == BB_DECIMATION) {
-						bb_decimation_count = 0;
-
-						//filtfile.write((char *)&BB_filt_samp, sizeof(float));
-						sensor_message = decoder.push(BB_filt_samp);
+						/*tmp_cmp = *BB_filt_samp;
+						filtfile.write((char *)&tmp_cmp, sizeof(float));*/
+						sensor_message = decoder.push(*BB_filt_samp);
 
 						// Process this sensor message if it hasn't been already
 						if (!sensor_message->isProcessed()) {
