@@ -12,14 +12,17 @@
 #define SYNC_LEVEL_MASK 0x3FFFFFFF	// First couple bits are inconsistent on some sensors
 
 #define CHANNEL_BITS 4
-#define TXID_BITS 20
+#define HEADER_BITS 20
+#define STD_TXID_BITS 20
+#define STD_TXID_MASK ((0x1<<STD_TXID_BITS)-1)
+#define VIVINT_TXID_BITS 32
 #define SENSOR_STATE_BITS 8
 #define CRC_BITS 16
 
 
-enum Vendor {UNKNOWN, HONEYWELL, TWOGIG};
+enum Vendor {UNKNOWN, HONEYWELL, TWOGIG, VIVINT};
 static const Vendor vendor_channel_map[0x1<<CHANNEL_BITS] = {	// A map of channel numbers to the associated vendors
-		UNKNOWN, UNKNOWN, TWOGIG, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN,
+		UNKNOWN, UNKNOWN, TWOGIG, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, VIVINT,
 		HONEYWELL, TWOGIG, TWOGIG, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN};
 
 
@@ -28,16 +31,18 @@ class SensorMessage {
 public:
 	SensorMessage(const unsigned char& channel): vendor(vendor_channel_map[channel]) {};
 	Vendor getVendor() const {return vendor;}
+	unsigned int getHeader() const {return header;};
 	unsigned long int getTXID() const {return txid;};
 	unsigned char getState() const {return sensor_state;};
 private:
 	const Vendor vendor;
+	unsigned int header {};
 	unsigned long int txid {};
 	unsigned char sensor_state {};
 };
 
 
-enum messageState {SYNC, CHANNEL, TXID, SENSOR_STATE, CRC};
+enum messageState {SYNC, CHANNEL, HEADER, TXID, SENSOR_STATE, CRC};
 
 
 class SensorMessageReceiver {

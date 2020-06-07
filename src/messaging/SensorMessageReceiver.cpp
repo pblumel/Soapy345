@@ -43,35 +43,66 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 
 					// Configure CRC checker to settings used by the vendor
 					crc16.reset();
-					crc16.setPoly(0x8005);
-					// DEBUG OUTPUT
-					if (sensor_message->getVendor() == UNKNOWN) {
+					switch (sensor_message->getVendor()) {
+					case TWOGIG:
+						crc16.setPoly(0x8050);
+						message_state = TXID;
+						break;
+					case VIVINT:
+						// TODO: Determine real CRC parameters used
+						crc16.setPoly(0x8005);
+						message_state = HEADER;
+						break;
+					case UNKNOWN:
 						std::cout << std::endl;
 						std::cout << "No known vendor uses channel " << channel << ", may cause CRC failure." << std::endl;
-					} else if (sensor_message->getVendor() == TWOGIG) {
-						crc16.setPoly(0x8050);
+					default:
+						crc16.setPoly(0x8005);	// Default Honeywell parameters
+						message_state = TXID;
 					}
 					crc16.push(channel, CHANNEL_BITS);
+				}
 
-					message_state = TXID;
+				break;
+			case HEADER:
+				manchester_decoder.add(symbol_state);
+
+				if (manchester_decoder.size() == HEADER_BITS) {
+					sensor_message->header = manchester_decoder.pop_all();
+					crc16.push(sensor_message->getHeader(), HEADER_BITS);
+
+					message_state = SENSOR_STATE;
 				}
 
 				break;
 			case TXID:
 				manchester_decoder.add(symbol_state);
 
-				if (manchester_decoder.size() == TXID_BITS) {
-					unsigned long int txid = manchester_decoder.pop_all();
+				// Wait for all TXID bits
+				if (manchester_decoder.size() < STD_TXID_BITS) {
+					break;
+				} else if (sensor_message->getVendor() == VIVINT) {
+					if (manchester_decoder.size() != VIVINT_TXID_BITS) {
+						break;
+					}
 
-					if (!txid) {	// Invalid TXID, reset and wait for next message
+					// The vendor is VIVINT and all expected TXID bits have been received
+					message_state = CRC;
+				} else {
+					// The vendor is not VIVINT and all expected TXID bits have been received
+					message_state = SENSOR_STATE;
+				}
+
+				{
+					auto num_txid_bits = manchester_decoder.size();
+					sensor_message->txid = manchester_decoder.pop_all();
+
+					if (!sensor_message->getTXID()) {	// Invalid TXID, reset and wait for next message
 						resetToSync();
 						break;
 					}
 
-					sensor_message->txid = txid;
-					crc16.push(sensor_message->getTXID(), TXID_BITS);
-
-					message_state = SENSOR_STATE;
+					crc16.push(sensor_message->getTXID(), num_txid_bits);
 				}
 
 				break;
@@ -82,7 +113,11 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 					sensor_message->sensor_state = manchester_decoder.pop_all();
 					crc16.push(sensor_message->getState(), SENSOR_STATE_BITS);
 
-					message_state = CRC;
+					if (sensor_message->getVendor() == VIVINT) {
+						message_state = TXID;
+					} else {
+						message_state = CRC;
+					}
 				}
 
 				break;
@@ -91,7 +126,15 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 
 				if (manchester_decoder.size() == CRC_BITS) {
 					// Verify CRC
-					if (manchester_decoder.pop_all() == crc16.getCRC()) {
+					auto rx_crc = manchester_decoder.pop_all();
+					if (sensor_message->getVendor() == VIVINT) {	// Temporarily bypass CRC for Vivint
+																// sensors, CRC parameters are unknown
+																// TODO: Enable CRC check for Vivint
+						std::cout << "VIVINT SENSOR MESSAGE: 0x";
+						std::cout << std::setfill('0') << std::setw((CHANNEL_BITS+HEADER_BITS+VIVINT_TXID_BITS+SENSOR_STATE_BITS)/4)
+									<< std::hex << crc16.getData();
+						std::cout << " CRC 0x" << std::setw(CRC_BITS/4) << rx_crc << std::dec << std::endl;
+					} else if (rx_crc == crc16.getCRC()) {
 						symbol_len_tracker.newSymbol();
 						symbol_state = sample;
 
@@ -101,9 +144,10 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 						return output_message;	// Declare this message ready for processing
 												// By returning here, a bit may be lost from the next message if it
 												// follows directly behind this one, but the likelihood is negligible
+					} else {
+						std::cout << "CRC FAIL FOR DATA 0x" << std::hex << crc16.getData() << std::dec << std::endl;
 					}
 
-					std::cout << "CRC FAIL FOR DATA 0x" << std::hex << crc16.getData() << std::dec << std::endl;
 					resetToSync();	// Reset and wait for next message
 				}
 

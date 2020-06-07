@@ -22,10 +22,11 @@ static const std::string status_bit_states[SENSOR_STATE_BITS][3] = {
 
 class SensorHistory {
 public:
-	SensorHistory(const unsigned char& sensor_state);
+	SensorHistory(const Vendor& vendor, const unsigned char& sensor_state);
 	SensorHistory(SensorHistory&& obj);
 	~SensorHistory();
 	void updateSensorState(const unsigned char& sensor_state);
+	const Vendor vendor;
 private:
 	void printStatusDiff(const std::vector<std::pair<unsigned char, time_t>>::iterator& entry) const;
 	std::vector<std::pair<unsigned char, time_t>> history;

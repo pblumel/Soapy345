@@ -4,7 +4,7 @@
 #include <ctime>
 
 
-SensorHistory::SensorHistory(const unsigned char& sensor_state) {
+SensorHistory::SensorHistory(const Vendor& vendor, const unsigned char& sensor_state): vendor(vendor) {
 	history.push_back(std::pair<unsigned char, time_t>(sensor_state, time(NULL)));
 
 	// Output initial sensor state to the console
@@ -20,7 +20,7 @@ SensorHistory::SensorHistory(const unsigned char& sensor_state) {
 }
 
 
-SensorHistory::SensorHistory(SensorHistory&& obj): history(obj.history), rx_msg_count(obj.rx_msg_count) {
+SensorHistory::SensorHistory(SensorHistory&& obj): vendor(obj.vendor), history(obj.history), rx_msg_count(obj.rx_msg_count) {
 	obj.history.clear();
 	obj.rx_msg_count = 0;
 }
