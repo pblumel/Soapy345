@@ -35,6 +35,7 @@ template <typename T>
 Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const int& xlation_freq)
 	: num_taps(num_taps), samp_rate(samp_rate), decimation(decimation), cutoff_freq(cutoff_freq), normalized_xlation_freq((2*M_PI*xlation_freq) / samp_rate) {
 
+	shift_register = new T[this->num_taps];
 	taps = new float[this->num_taps];
 
 	if (filt_t == LPF) {
@@ -42,8 +43,6 @@ Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const 
 	} else if (filt_t == HPF) {
 		computeHPFTaps();
 	}
-
-	shift_register = new T[this->num_taps];
 
 	// Determine number of LO samples to generate for frequency xlation such that there are no discontinuities
 	while ((abs(xlation_freq)*num_LO_samples) % samp_rate != 0) {
@@ -64,6 +63,7 @@ template <typename T>
 Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq)
 	: num_taps(num_taps), samp_rate(samp_rate), decimation(decimation), cutoff_freq(cutoff_freq) {
 
+	shift_register = new T[this->num_taps];
 	taps = new float[this->num_taps];
 
 	if (filt_t == LPF) {
@@ -71,8 +71,6 @@ Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const 
 	} else if (filt_t == HPF) {
 		computeHPFTaps();
 	}
-
-	shift_register = new T[this->num_taps];
 }
 
 
