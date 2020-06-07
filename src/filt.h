@@ -15,14 +15,15 @@ public:
 private:
 	void computeLPFTaps();
 	void computeHPFTaps();
-	T getFreqXlationMult() const;
+	T getFreqXlationMult(const unsigned int& step) const;
 	const unsigned int num_taps {};
 	const unsigned int samp_rate {};
 	const unsigned int decimation {};
 	const unsigned int cutoff_freq {};
 	const float normalized_xlation_freq {0.0};
-	unsigned int num_xlation_steps {1};
-	unsigned int xlation_step {};
+	unsigned int num_LO_samples {1};
+	unsigned int LO_step {};
+	T* LO_samples {nullptr};
 	float* taps {nullptr};
 	T* shift_register {nullptr};
 	unsigned int decimation_counter {0};
@@ -45,8 +46,16 @@ Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const 
 	shift_register = new T[this->num_taps];
 
 	// Determine number of LO samples to generate for frequency xlation such that there are no discontinuities
-	while ((abs(xlation_freq)*num_xlation_steps) % samp_rate != 0) {
-		num_xlation_steps++;
+	while ((abs(xlation_freq)*num_LO_samples) % samp_rate != 0) {
+		num_LO_samples++;
+	}
+
+	// Allocate LO sample lookup table
+	LO_samples = new T[num_LO_samples];
+
+	// Compute LO values
+	for (unsigned int i = 0; i<num_LO_samples; i++) {
+		LO_samples[i] = getFreqXlationMult(i);
 	}
 }
 
@@ -84,8 +93,8 @@ T* Filter<T>::compute(const T& sample) {
 
 	// If frequency translation is enabled, mix new sample with digital LO
 	if (normalized_xlation_freq != 0.0) {
-		shift_register[0] *= getFreqXlationMult();
-		xlation_step = (xlation_step+1) % num_xlation_steps;	// Prepare LO generator for next sample
+		shift_register[0] *= LO_samples[LO_step];
+		LO_step = (LO_step+1) % num_LO_samples;	// Prepare LO generator for next sample
 	}
 
 	decimation_counter++;
@@ -144,14 +153,14 @@ void Filter<T>::computeHPFTaps() {
 
 
 template <>
-std::complex<float> Filter<std::complex<float>>::getFreqXlationMult() const {	// Get the appropriate mixer value for the current sample
-	return std::complex<float>(cos(xlation_step * normalized_xlation_freq), sin(xlation_step * normalized_xlation_freq));
+std::complex<float> Filter<std::complex<float>>::getFreqXlationMult(const unsigned int& step) const {	// Get the appropriate mixer value for the current sample
+	return std::complex<float>(cos(step * normalized_xlation_freq), sin(step * normalized_xlation_freq));
 }
 
 
 template <typename T>
-T Filter<T>::getFreqXlationMult() const {	// Get the appropriate mixer value for the current sample
-	return cos(xlation_step * normalized_xlation_freq);
+T Filter<T>::getFreqXlationMult(const unsigned int& step) const {	// Get the appropriate mixer value for the current sample
+	return cos(step * normalized_xlation_freq);
 }
 
 #endif /* FILT_H_ */
