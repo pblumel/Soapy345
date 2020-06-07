@@ -78,8 +78,9 @@ Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const 
 
 template <typename T>
 Filter<T>::~Filter() {
- delete[] taps;
- delete[] shift_register;
+	 delete[] taps;
+	 delete[] shift_register;
+	 delete[] LO_samples;
 }
 
 
