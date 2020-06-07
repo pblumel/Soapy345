@@ -9,7 +9,7 @@
 #include "SensorTracker.h"
 
 #include <iostream>
-#include <fstream>
+#include <iomanip>
 #include <complex>
 
 
@@ -30,6 +30,7 @@
 
 
 using std::cout;
+using std::cerr;
 using std::endl;
 using std::complex;
 
@@ -47,94 +48,116 @@ int main() {
 
 
 
-	/* ------------------------------------------
-	 * ------------CONFIGURE HARDWARE------------
-	   ------------------------------------------*/
+	/* -------------------------------------------
+	 * ----------QUERY CONNECTED DEVICES----------
+	   -------------------------------------------*/
 
-	// 0. enumerate devices (list all devices' information)
-	SoapySDR::KwargsList results = SoapySDR::Device::enumerate();
-	SoapySDR::Kwargs::iterator it;
+	// Get list of connected devices
+	SoapySDR::KwargsList devices = SoapySDR::Device::enumerate();
 
-	for(unsigned int i = 0; i < results.size(); ++i)
-	{
-		printf("Found device #%d: ", i);
-		for( it = results[i].begin(); it != results[i].end(); ++it)
-		{
-			printf("%s = %s\n", it->first.c_str(), it->second.c_str());
-		}
-		printf("\n");
-	}
-
-	// 1. create device instance
-	
-	//	1.1 set arguments
-	//		args can be user defined or from the enumeration result
-	//		We use first results as args here:
-	SoapySDR::Kwargs args = results[0];
-
-	//	1.2 make device
-	SoapySDR::Device *sdr = SoapySDR::Device::make(args);
-
-	if( sdr == NULL )
-	{
-		fprintf(stderr, "SoapySDR::Device::make failed\n");
+	if (devices.empty()) {
+		cout << "No devices found, please connect a device and try again." << endl;
 		return EXIT_FAILURE;
 	}
 
-	// 2. query device info
-	std::vector< std::string > str_list;	//string list
+	// Output list of connected devices and their properties
+	for (const auto& device : devices) {
+		cout << "Found ";
+		for (const auto& prop : device) {
+			cout << prop.first << " = " << prop.second << endl;
+		}
+		cout << endl;
+	}
 
-	//	2.1 antennas
-	str_list = sdr->listAntennas( SOAPY_SDR_RX, 0);
-	printf("Rx antennas: ");
-	for(unsigned int i = 0; i < str_list.size(); ++i)
-		printf("%s,", str_list[i].c_str());
-	printf("\n");
 
-	//	2.2 gains
-	str_list = sdr->listGains( SOAPY_SDR_RX, 0);
-	printf("Rx Gains: ");
-	for(unsigned int i = 0; i < str_list.size(); ++i)
-		printf("%s, ", str_list[i].c_str());
-	printf("\n");
 
-	//	2.3. ranges(frequency ranges)
-	SoapySDR::RangeList ranges = sdr->getFrequencyRange(SOAPY_SDR_RX, 0);
-	printf("Rx freq ranges: ");
-	for(unsigned int i = 0; i < ranges.size(); ++i)
-		printf("[%g Hz -> %g Hz], ", ranges[i].minimum(), ranges[i].maximum());
-	printf("\n");
 
-	// 3. apply settings
+	/* -------------------------------------------
+	 * -----------QUERY SELECTED DEVICE-----------
+	   -------------------------------------------*/
+
+	// Make device zero
+	SoapySDR::Device *sdr = SoapySDR::Device::make(devices[0]);
+
+	if (sdr == nullptr) {
+		cerr << "SoapySDR::Device::make failed" << endl;
+		return EXIT_FAILURE;
+	}
+
+	cout << endl << "HARDWARE OPTIONS" << endl;
+
+	//	List available antenna ports on device
+	cout << "Rx antennas: ";
+	for (const auto& antenna : sdr->listAntennas(SOAPY_SDR_RX, 0)) {
+		cout << antenna << ", ";
+	}
+	cout << endl;
+
+	//	List available gains on device
+	cout << "Rx gains: ";
+	for (const auto& gain : sdr->listGains(SOAPY_SDR_RX, 0)) {
+		cout << gain << ", ";
+	}
+	cout << endl;
+
+	//	List frequency ranges of device
+	cout << "Rx freq ranges: ";
+	for (const auto& freq_range : sdr->getFrequencyRange(SOAPY_SDR_RX, 0)) {
+		cout << "[" << freq_range.minimum() << " Hz -> " << freq_range.maximum() << " Hz], ";
+	}
+	cout << endl;
+
+
+
+
+	/* -----------------------------------------
+	 * --------CONFIGURE SELECTED DEVICE--------
+	   -----------------------------------------*/
+
+	cout << endl << "HARDWARE CONFIGURATION" << endl;
+
+	// Disable automatic gain control
 	sdr->setGainMode(SOAPY_SDR_RX, 0, false);
-	for (auto const& gain : str_list) {	// Configure each gain stage
+
+	// Configure manual gain stages
+	for (const auto& gain : sdr->listGains(SOAPY_SDR_RX, 0)) {
+		std::cout << gain;
+
 		if (gain == "LNA") {
 			sdr->setGain(SOAPY_SDR_RX, 0, gain, 20);
-			std::cout << gain << ": " << sdr->getGain(SOAPY_SDR_RX, 0, gain) << std::endl;
 		} else if (gain == "VGA") {
 			sdr->setGain(SOAPY_SDR_RX, 0, gain, 20);
-			std::cout << gain << ": " << sdr->getGain(SOAPY_SDR_RX, 0, gain) << std::endl;
 		} else if (gain == "AMP") {
 			sdr->setGain(SOAPY_SDR_RX, 0, gain, 0);
-			std::cout << gain << ": " << sdr->getGain(SOAPY_SDR_RX, 0, gain) << std::endl;
 		}
+		std::cout << " gain: " << std::setfill('0') << std::setw(2) << sdr->getGain(SOAPY_SDR_RX, 0, gain) << " dB" << std::endl;
 	}
 	
+	// Configure sample rate
 	sdr->setSampleRate(SOAPY_SDR_RX, 0, SAMP_RATE);
-	sdr->setFrequency(SOAPY_SDR_RX, 0, TUNE_FREQ);
-	cout << "Tuned Freqency " << sdr->getFrequency(SOAPY_SDR_RX, 0) << endl;
+	cout << "Sample rate: " << sdr->getSampleRate(SOAPY_SDR_RX, 0) << " samples/second" << endl;
 
-	// 4. setup a stream (complex floats)
-	SoapySDR::Stream *rx_stream = sdr->setupStream( SOAPY_SDR_RX, SOAPY_SDR_CF32);
-	if( rx_stream == NULL)
-	{
-		fprintf( stderr, "Failed\n");
-		SoapySDR::Device::unmake( sdr );
+	// Configure frequency
+	sdr->setFrequency(SOAPY_SDR_RX, 0, TUNE_FREQ);
+	cout << "Freqency: " << sdr->getFrequency(SOAPY_SDR_RX, 0) << " Hz" << endl;
+
+
+
+
+	/* -----------------------------------------
+	 * ---------CONFIGURE SAMPLE STREAM---------
+	   -----------------------------------------*/
+
+	// Setup a stream (complex floats)
+	SoapySDR::Stream *rx_stream = sdr->setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32);
+	if(rx_stream == nullptr) {
+		cerr << "Sample stream creation failed" << endl;
+		SoapySDR::Device::unmake(sdr);
 		return EXIT_FAILURE;
 	}
-	sdr->activateStream( rx_stream, 0, 0, 0);
+	sdr->activateStream(rx_stream, 0, 0, 0);
 
-	// 5. create a re-usable buffer for rx samples
+	// Create a re-usable buffer for rx samples
 	complex<float> buff[RX_BUF_SIZE];
 
 
@@ -143,12 +166,6 @@ int main() {
 	/* -----------------------------------------
 	 * ---------BEGIN SIGNAL PROCESSING---------
 	   -----------------------------------------*/
-
-	// Configure output files for data so that it can be read into GNU Radio file source blocks for debugging (temporary)
-	std::ofstream rawfile;
-	std::ofstream filtfile;
-	rawfile.open("/home/philip/Desktop/soapy_raw_output.bin", std::ios::out | std::ios::binary);
-	filtfile.open("/home/philip/Desktop/soapy_filt_output.bin", std::ios::out | std::ios::binary);
 
 	// Configure IF (complex LPF with frequency Xlation) and BB (HPF) filters
 	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0), IF_DECIMATION, SENSOR_BW/2,
@@ -174,7 +191,6 @@ int main() {
 
 		// Read samples into buffer
 		int ret = sdr->readStream(rx_stream, buffs, RX_BUF_SIZE, flags, time_ns, 1e5);
-		//printf("ret = %d, flags = %d, time_ns = %lld\n", ret, flags, time_ns);
 		
 		if (ret < 0) {	// Report stream errors
 			if (ret == SOAPY_SDR_OVERFLOW) {
@@ -184,31 +200,13 @@ int main() {
 			}
 		} else {	// If sample stream is intact, process samples in buffer
 			for (auto const& sample : buff) {
-				/*auto tmp_cmp = sample.real();
-				rawfile.write((char *)&tmp_cmp, sizeof(float));
-				tmp_cmp = sample.imag();
-				rawfile.write((char *)&tmp_cmp, sizeof(float));*/
-
 				// Apply frequency translation and lowpass filter to IF
 				auto filt_samp = IFfilter.compute(sample);
 				if (filt_samp) {	// If a sample has been output after decimation
-
-					/*auto tmp_cmp = filt_samp.real();
-					rawfile.write((char *)&tmp_cmp, sizeof(float));
-					tmp_cmp = filt_samp.imag();
-					rawfile.write((char *)&tmp_cmp, sizeof(float));*/
-
-					// Compute magnitude
-					//auto tmp_cmp = filt_samp.real()*filt_samp.real() + filt_samp.imag()*filt_samp.imag();
-					//rawfile.write((char *)&tmp_cmp, sizeof(float));
-
 					// Compute magnitude (BB) and apply highpass filter to center signal at zero.
 					// This allows BB pulse widths to be determined by tracking zero-crossings.
 					auto BB_filt_samp = BBfilter.compute(filt_samp->real()*filt_samp->real() + filt_samp->imag()*filt_samp->imag());
 					if (BB_filt_samp) {	// If a sample has been output after decimation
-
-						/*tmp_cmp = *BB_filt_samp;
-						filtfile.write((char *)&tmp_cmp, sizeof(float));*/
 						sensor_message = decoder.push(*BB_filt_samp);
 
 						// Process this sensor message if it hasn't been already
@@ -221,14 +219,12 @@ int main() {
 			}
 		}
 	}
-	rawfile.close();
-	filtfile.close();
 	
-	// 7. shutdown the stream
+	// Shutdown the stream
 	sdr->deactivateStream(rx_stream, 0, 0);	//stop streaming
-	sdr->closeStream(rx_stream );
+	sdr->closeStream(rx_stream);
 
-	// 8. cleanup device handle
+	// Cleanup device handle
 	SoapySDR::Device::unmake(sdr);
 
 	return EXIT_SUCCESS;
