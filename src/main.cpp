@@ -16,8 +16,8 @@
 #define RX_BUF_SIZE 1024
 
 #define SAMP_RATE 200e3
-#define SIG_FREQ 345012e3
-#define TUNE_FREQ 344967e3
+#define SIG_FREQ 345006e3
+#define TUNE_FREQ 344936e3	// Space the DC spike well away from the signal
 #define SENSOR_BW 40e3
 #define SPS 3
 
