@@ -5,3 +5,15 @@ Next up is to write a desctructor for the sensor tracker which outputs overall s
 
 ## Install Dependencies:
 apt install build-essential libsoapysdr-dev soapysdr-module-hackrf
+
+## Filter Performance with Noise Input:
+### Raw, Unfiltered Samples
+![200 kHz bandwidth noise data](doc/raw_noise.png)
+### Intermediate Frequency Samples
+![50 kHz bandwidth noise data](doc/if_filt_noise.png)
+
+## Filter Performance with Signal Input:
+### Raw, Unfiltered Samples
+![200 kHz bandwidth signal data](doc/raw_signal.png)
+### Intermediate Frequency Samples
+![50 kHz bandwidth signal data](doc/if_filt_signal.png)
