@@ -68,7 +68,7 @@ void SensorTracker::push(const unsigned int& txid, const unsigned char& sensor_s
 		for (auto bit_state : status_bit_states) {
 			std::cout << bit_state[2] << ": "; // Output bit descriptor
 			// Output state description
-			std::cout << bit_state[sensor_state>>(sizeof(sensor_state)-i) & 0x1] << std::endl;
+			std::cout << bit_state[sensor_state>>(SENSOR_STATE_BITS-i) & 0x1] << std::endl;
 
 			i++;
 		}
