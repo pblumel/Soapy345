@@ -33,7 +33,7 @@ SensorMessage* Decode345::push(const float& sample) {
 
 				if (manchester_decoder.size() == CHANNEL_BITS) {
 					auto channel = manchester_decoder.pop_all();
-					if (16 < (channel<<CHANNEL_BITS)) {
+					if (channel < (0x1<<CHANNEL_BITS)) {	// Check bounds of valid channels
 						sensor_message.idVendor(channel);	// Determine vendor based on known correlations of vendors to specific channels
 					} else {
 						std::cerr << channel << " is not a valid channel. Channels range from 0-" << (0x1<<CHANNEL_BITS)-1 << "." << std::endl;
