@@ -20,10 +20,10 @@
 #define CRC_BITS 16
 
 
-enum Vendor {UNKNOWN, HONEYWELL, TWOGIG, VIVINT};
+enum Vendor {UNKNOWN, HONEYWELL, TWOGIG, VIVINT, VIVINT_INIT};	// Vivint sensors send messages over a different channel when they first power on (INIT)
 static const Vendor vendor_channel_map[0x1<<CHANNEL_BITS] = {	// A map of channel numbers to the associated vendors
 		UNKNOWN, UNKNOWN, TWOGIG, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, VIVINT,
-		HONEYWELL, TWOGIG, TWOGIG, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN};
+		HONEYWELL, TWOGIG, TWOGIG, UNKNOWN, UNKNOWN, VIVINT_INIT, UNKNOWN, UNKNOWN};
 
 
 class SensorMessage {
