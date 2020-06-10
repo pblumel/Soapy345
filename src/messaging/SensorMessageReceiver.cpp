@@ -131,18 +131,11 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 				if (manchester_decoder.size() == CRC_BITS) {
 					// Verify CRC
 					auto rx_crc = manchester_decoder.pop_all();
-					if (sensor_message->getVendor() == VIVINT) {	// Temporarily bypass CRC for Vivint
-																// sensors, CRC parameters are unknown
-																// TODO: Enable CRC check for Vivint
-						std::cout << "VIVINT SENSOR MESSAGE: 0x";
-						std::cout << std::setfill('0') << std::setw((CHANNEL_BITS+HEADER_BITS+VIVINT_TXID_BITS+SENSOR_STATE_BITS)/4)
-									<< std::hex << crc16.getData();
-						std::cout << " CRC 0x" << std::setw(CRC_BITS/4) << rx_crc << std::dec << std::endl;
-					} else if (rx_crc == crc16.getCRC()) {
-						// Temporarily print init Vivint sensor messages for analysis
-						// CRC parameters are known for these init messages, but the data fields are different and not yet understood so don't
+					if (rx_crc == crc16.getCRC()) {
+						// Temporarily print Vivint sensor message hex data for analysis
+						// CRC parameters are known for init messages, but not the regular status messages. The data fields are different and not yet understood so don't
 						// declare the message ready for external processing
-						if (sensor_message->getVendor() == VIVINT_INIT) {
+						if ((sensor_message->getVendor() == VIVINT) | (sensor_message->getVendor() == VIVINT_INIT)) {
 							std::cout << "VIVINT SENSOR MESSAGE: 0x";
 							std::cout << std::setfill('0') << std::setw((CHANNEL_BITS+HEADER_BITS+VIVINT_TXID_BITS+SENSOR_STATE_BITS)/4)
 										<< std::hex << crc16.getData() << std::dec << std::endl;
@@ -158,7 +151,7 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 													// follows directly behind this one, but the likelihood is negligible
 						}
 					} else {
-						std::cout << "CRC FAIL FOR DATA 0x" << std::hex << crc16.getData() << std::dec << std::endl;
+						std::cout << "CRC FAIL FOR DATA 0x" << std::hex << crc16.getData() << " AND RX CRC 0x" << rx_crc << " WITH COMPUTED CRC 0x" << crc16.getCRC() << std::dec << std::endl;
 					}
 
 					resetToSync();	// Reset and wait for next message
