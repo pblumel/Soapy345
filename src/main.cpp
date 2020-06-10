@@ -207,7 +207,8 @@ int main() {
 					// This allows BB pulse widths to be determined by tracking zero-crossings.
 					auto BB_filt_samp = BBfilter.compute(filt_samp->real()*filt_samp->real() + filt_samp->imag()*filt_samp->imag());
 					if (BB_filt_samp) {	// If a sample has been output after decimation
-						sensor_message = decoder.push(*BB_filt_samp);
+						// Convert samples to a boolean square wave using sign bits
+						sensor_message = decoder.push(!signbit(*BB_filt_samp));
 
 						// Process this sensor message if it hasn't been already
 						if (!sensor_message->isProcessed()) {

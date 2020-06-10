@@ -23,14 +23,13 @@ public:
 	Decode345(const unsigned int& est_symbol_len) :
 		symbol_len_tracker(SymbolLenTracker<unsigned int>(SYNC_LEN-1, est_symbol_len)) {};
 					// -1 slot is required because 11b in the manchester sync sequence only takes 1 slot
-	SensorMessage* push(const float& sample);
+	SensorMessage* push(const bool& sample);
 private:
-	const bool symbolChanged(const float& sample) const;
+	bool symbol_state {};
 	unsigned int rx_sync_sr {};
 	SymbolLenTracker<unsigned int> symbol_len_tracker;	// Shortened window size due to ignored sync bits
 	ManchesterDecoder manchester_decoder;
 	CRC16 crc16;
-	float prev_sample {1.0};
 	messageState message_state {SYNC};
 	SensorMessage sensor_message;
 };

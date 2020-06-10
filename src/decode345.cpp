@@ -3,15 +3,14 @@
 #include <iomanip>
 
 
-SensorMessage* Decode345::push(const float& sample) {
-	if (!symbolChanged(sample)) {
+SensorMessage* Decode345::push(const bool& sample) {
+	if (sample == symbol_state) {	// Continuation of the same symbol state
 		symbol_len_tracker++;
 		return &sensor_message;
 	}
 
 	// New symbol incoming, process received symbol(s)
 	// There can be two in manchester sequences LO HI HI LO or HI LO LO HI
-	bool symbol_state = prev_sample > 0.0;
 	for (unsigned int i = symbol_len_tracker.getCurSymbolCount(); i>0; i--) {
 
 		/*------STATE MACHINE------*/
@@ -104,23 +103,7 @@ SensorMessage* Decode345::push(const float& sample) {
 	}
 
 	symbol_len_tracker.newSymbol();
-	prev_sample = sample;
+	symbol_state = sample;
 
 	return &sensor_message;
-}
-
-
-const bool Decode345::symbolChanged(const float& sample) const {
-	if (prev_sample > 0.0) {
-		if (sample < 0.0) {
-			return true;
-		}
-	} else if (prev_sample < 0.0) {
-		if (sample > 0.0) {
-			return true;
-		}
-	}
-
-	// This is a continuation of the same symbol
-	return false;
 }
