@@ -2,7 +2,6 @@
 #define SRC_SENSORTRACKER_H_
 
 
-#include "SensorMessage.h"
 #include "SensorMessageReceiver.h"
 
 #include <map>
