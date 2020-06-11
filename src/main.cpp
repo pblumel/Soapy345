@@ -5,7 +5,7 @@
 #include <SoapySDR/Formats.hpp>
 
 #include "filt.h"
-#include "decode345.h"
+#include "SensorMessageReceiver.h"
 #include "SensorTracker.h"
 
 #include <iostream>
@@ -179,7 +179,7 @@ int main() {
 	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
 	// The decoder computes more accurate SPS estimations per-message using sync bits
 	// for overall SPS accuracy throughout the message.
-	Decode345 decoder(SPS);
+	SensorMessageReceiver decoder(SPS);
 	SensorMessage* sensor_message = nullptr;
 	SensorTracker sensor_tracker;
 

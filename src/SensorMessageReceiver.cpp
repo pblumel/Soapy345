@@ -1,9 +1,9 @@
-#include "decode345.h"
+#include "SensorMessageReceiver.h"
 #include <iostream>
 #include <iomanip>
 
 
-SensorMessage* Decode345::push(const bool& sample) {
+SensorMessage* SensorMessageReceiver::push(const bool& sample) {
 	if (sample == symbol_state) {	// Continuation of the same symbol state
 		symbol_len_tracker++;
 		return &sensor_message;

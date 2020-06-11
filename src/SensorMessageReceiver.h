@@ -1,5 +1,5 @@
-#ifndef DECODE345_H_
-#define DECODE345_H_
+#ifndef SENSORMESSAGERECEIVER_H_
+#define SENSORMESSAGERECEIVER_H_
 
 #include "SymbolLenTracker.h"
 #include "ManchesterDecoder.h"
@@ -18,9 +18,9 @@
 enum messageState {SYNC, CHANNEL, TXID, SENSOR_STATE, CRC};
 
 
-class Decode345 {
+class SensorMessageReceiver {
 public:
-	Decode345(const unsigned int& est_symbol_len) :
+	SensorMessageReceiver(const unsigned int& est_symbol_len) :
 		symbol_len_tracker(SymbolLenTracker<unsigned int>(SYNC_LEN-1, est_symbol_len)) {};
 					// -1 slot is required because 11b in the manchester sync sequence only takes 1 slot
 	SensorMessage* push(const bool& sample);
@@ -34,4 +34,4 @@ private:
 	SensorMessage sensor_message;
 };
 
-#endif /* DECODE345_H_ */
+#endif /* SENSORMESSAGERECEIVER_H_ */
