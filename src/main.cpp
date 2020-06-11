@@ -17,7 +17,7 @@
 
 #define SAMP_RATE 200e3
 #define SIG_FREQ 345006e3
-#define TUNE_FREQ 344936e3	// Space the DC spike well away from the signal
+#define TUNE_FREQ_OFFSET -70e3	// Space the DC spike well away from the signal
 #define SENSOR_BW 40e3
 #define SPS 3
 
@@ -138,7 +138,7 @@ int main() {
 	cout << "Sample rate: " << sdr->getSampleRate(SOAPY_SDR_RX, 0) << " samples/second" << endl;
 
 	// Configure frequency
-	sdr->setFrequency(SOAPY_SDR_RX, 0, TUNE_FREQ);
+	sdr->setFrequency(SOAPY_SDR_RX, 0, SIG_FREQ+TUNE_FREQ_OFFSET);
 	cout << "Freqency: " << sdr->getFrequency(SOAPY_SDR_RX, 0) << " Hz" << endl;
 
 
