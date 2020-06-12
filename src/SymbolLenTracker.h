@@ -6,7 +6,7 @@
 template <typename T>
 class SymbolLenTracker {
 public:
-	SymbolLenTracker(const unsigned int& size, const unsigned int& est_symbol_len);
+	SymbolLenTracker(const unsigned int& size, const float& est_symbol_len);
 	~SymbolLenTracker();
 	void newSymbol();
 	void operator++(int) const;
@@ -17,13 +17,13 @@ private:
 	T* symbol_lengths {nullptr};
 	const unsigned int size;
 	unsigned int front {0};
-	const unsigned int est_symbol_len;
+	const float est_symbol_len;
 	float avg_symbol_len;	// Calculated per-message value, based on sync
 };
 
 
 template <typename T>
-SymbolLenTracker<T>::SymbolLenTracker(const unsigned int& size, const unsigned int& est_symbol_len) :
+SymbolLenTracker<T>::SymbolLenTracker(const unsigned int& size, const float& est_symbol_len) :
 		size(size), est_symbol_len(est_symbol_len), avg_symbol_len(est_symbol_len) {
 
 	symbol_lengths = new unsigned int[size];	// Don't really care to initialize values,

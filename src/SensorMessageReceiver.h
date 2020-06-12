@@ -45,7 +45,7 @@ enum messageState {SYNC, CHANNEL, TXID, SENSOR_STATE, CRC};
 
 class SensorMessageReceiver {
 public:
-	SensorMessageReceiver(const unsigned int& est_symbol_len) :
+	SensorMessageReceiver(const float& est_symbol_len) :
 		symbol_len_tracker(SymbolLenTracker<unsigned int>(SYNC_LEN-1, est_symbol_len)) {};
 					// -1 slot is required because 11b in the manchester sync sequence only takes 1 slot
 	SensorMessage* push(const bool& sample);

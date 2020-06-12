@@ -19,13 +19,13 @@
 #define SIG_FREQ 345006e3
 #define TUNE_FREQ_OFFSET -70e3	// Space the DC spike well away from the signal
 #define SENSOR_BW 40e3
-#define SPS 3
+#define PULSE_WIDTH 130e-6	// 130 us
 
-#define IF_FILT_ORDER 50
+#define IF_FILT_ORDER 9
 #define IF_DECIMATION 4
 
-#define BB_FILT_CUTOFF 1225
-#define BB_FILT_ORDER 25	// Must be odd for type 1 filter
+#define BB_FILT_CUTOFF 1300
+#define BB_FILT_ORDER 15	// Must be odd for type 1 filter
 #define BB_DECIMATION 2
 
 
@@ -179,7 +179,7 @@ int main() {
 	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
 	// The decoder computes more accurate SPS estimations per-message using sync bits
 	// for overall SPS accuracy throughout the message.
-	SensorMessageReceiver decoder(SPS);
+	SensorMessageReceiver decoder(PULSE_WIDTH*(SAMP_RATE/(IF_DECIMATION*BB_DECIMATION)));
 	SensorMessage* sensor_message = nullptr;
 	SensorTracker sensor_tracker;
 
