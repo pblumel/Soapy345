@@ -16,12 +16,12 @@ apt install build-essential libsoapysdr-dev soapysdr-module-hackrf
 ## 3. Baseband Signal
 ![bb unfiltered signal data time domain](doc/bb_signal_time.png)
 ![bb unfiltered signal data freq domain](doc/bb_signal_freq.png)
-Note the lage DC offset due to using a diode detector (magnitude squared)
+Note the lage DC offset due to using a digital diode detector (magnitude squared)
 
 ## 4. Filtered Baseband Signal (DC Remove)
 ![bb filtered signal data time domain](doc/bb_filt_signal_time.png)
 ![bb filtered signal data freq domain](doc/bb_filt_signal_freq.png)
-With the DC offset removed, a square wave can easily be derived from the zero-crossings
+With optimal DC offset applied to the signal, a square wave can easily be derived from the zero-crossings
 
 ## 5. Final Square Wave
 ![final square wave](doc/final_square_wave.png)
