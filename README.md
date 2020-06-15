@@ -2,8 +2,16 @@
 A (WIP) 345 MHz sensor receiver based on the [SoapySDR](https://github.com/pothosware/SoapySDR) wrapper for the HackRF One. It is a rewrite of software I wrote previously in Python using GNU Radio.
 Currently, baseline hardware functionality and signal processing functionality is working, but needs some adjustment. Messages are received and verified using the CRC. Messages are used to track sensor state and output readable status change sumamries.
 
-## Install Dependencies:
-apt install build-essential libsoapysdr-dev soapysdr-module-hackrf
+## Compile, Install, and Execute:
+1. apt install build-essential libsoapysdr-dev soapysdr-module-hackrf
+1. git clone https://github.com/pblumel/Soapy345.git
+1. cd Soapy345
+1. sudo make install
+1. Soapy345
+
+## Uninstall
+1. Change directories (cd) into the local repository
+1. sudo make uninstall
 
 # Signal Processing Overview
 ## 1. Raw Signal
