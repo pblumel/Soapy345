@@ -5,7 +5,7 @@
 
 
 void printTXID(const Vendor& vendor, const unsigned int& txid) {
-	if (vendor == VIVINT) {
+	if ((vendor == VIVINT_INIT) | (vendor == VIVINT)) {
 		std::cout << std::setfill('0') << std::setw(4) << (txid>>STD_TXID_BITS) << "-";	// Print extra Vivint-specific leading TXID field
 	}
 

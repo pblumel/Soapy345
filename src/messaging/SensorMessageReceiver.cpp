@@ -139,17 +139,17 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 							std::cout << "VIVINT SENSOR MESSAGE: 0x";
 							std::cout << std::setfill('0') << std::setw((CHANNEL_BITS+HEADER_BITS+VIVINT_TXID_BITS+SENSOR_STATE_BITS)/4)
 										<< std::hex << crc16.getData() << std::dec << std::endl;
-						} else {
-							symbol_len_tracker.newSymbol();
-							symbol_state = sample;
-
-							auto output_message = sensor_message;	// Save this good message before resetting
-							resetToSync();
-
-							return output_message;	// Declare this message ready for processing
-													// By returning here, a bit may be lost from the next message if it
-													// follows directly behind this one, but the likelihood is negligible
 						}
+
+						symbol_len_tracker.newSymbol();
+						symbol_state = sample;
+
+						auto output_message = sensor_message;	// Save this good message before resetting
+						resetToSync();
+
+						return output_message;	// Declare this message ready for processing
+												// By returning here, a bit may be lost from the next message if it
+												// follows directly behind this one, but the likelihood is negligible
 					} else {
 						std::cout << "CRC FAIL FOR DATA 0x" << std::hex << crc16.getData() << " AND RX CRC 0x" << rx_crc << " WITH COMPUTED CRC 0x" << crc16.getCRC() << std::dec << std::endl;
 					}
