@@ -1,23 +1,41 @@
+PROJ_NAME = Soapy345
 VPATH = src
 BUILD_PATH = build
-LINK_TARGET = $(BUILD_PATH)/Soapy345
+
+OBJECTS = main.o SensorMessageReceiver.o ManchesterDecoder.o crc16.o SensorTracker.o
+OBJ_FILES = $(addprefix build/,$(OBJECTS))
 
 
-all: $(BUILD_PATH)/Soapy345
-	echo Done building, the executable can be found at build/Soapy345
+all: $(BUILD_PATH)/$(PROJ_NAME) build_path
+	echo Done building
+	
+install: $(BUILD_PATH)/$(PROJ_NAME)
+	cp $(BUILD_PATH)/$(PROJ_NAME) /usr/local/bin/
+	
+uninstall:
+	rm -f /usr/local/bin/$(PROJ_NAME)
 
 # LINK
-$(BUILD_PATH)/Soapy345: $(BUILD_PATH)/main.o $(BUILD_PATH)/SensorMessageReceiver.o $(BUILD_PATH)/ManchesterDecoder.o $(BUILD_PATH)/crc16.o $(BUILD_PATH)/SensorTracker.o
+$(BUILD_PATH)/$(PROJ_NAME): $(OBJ_FILES)
 	g++ -o $@ $^ -lSoapySDR
 
 # COMPILE/ASSEMBLE
-$(BUILD_PATH)/%.o: %.cpp $(BUILD_PATH)
+$(BUILD_PATH)/%.o: %.cpp
 	g++ -std=c++17 -O3 -Wall -c $< -o $@
 
 # Create build folder
+.PHONY: build_path
+build_path: $(BUILD_PATH)
 $(BUILD_PATH):
-	mkdir $@
+	mkdir -p $@
 
 # CLEAN BUILD FILES
 clean:
-	rm -f $(BUILD_PATH)/Soapy345 $(BUILD_PATH)/*.o
+	rm -f $(BUILD_PATH)/$(PROJ_NAME) $(BUILD_PATH)/*.o
+
+# Dependency Rules
+$(BUILD_PATH)/main.o: filt.h SensorMessageReceiver.h SensorTracker.h
+$(BUILD_PATH)/SensorMessageReceiver.o: SensorMessageReceiver.h SymbolLenTracker.h ManchesterDecoder.h crc16.h
+$(BUILD_PATH)/ManchesterDecoder.o: ManchesterDecoder.h
+$(BUILD_PATH)/crc16.o: crc16.h
+$(BUILD_PATH)/SensorTracker.o: SensorTracker.h SensorMessageReceiver.h
