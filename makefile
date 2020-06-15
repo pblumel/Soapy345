@@ -6,10 +6,10 @@ OBJECTS = main.o SensorMessageReceiver.o ManchesterDecoder.o crc16.o SensorTrack
 OBJ_FILES = $(addprefix build/,$(OBJECTS))
 
 
-all: $(BUILD_PATH)/$(PROJ_NAME) build_path
+all: build_path $(BUILD_PATH)/$(PROJ_NAME)
 	echo Done building
 	
-install: $(BUILD_PATH)/$(PROJ_NAME)
+install: build_path $(BUILD_PATH)/$(PROJ_NAME)
 	cp $(BUILD_PATH)/$(PROJ_NAME) /usr/local/bin/
 	
 uninstall:
