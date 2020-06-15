@@ -28,14 +28,14 @@ public:
 	void newMessage() {processed_state = false;};
 	void idVendor(const unsigned char& channel) {vendor = vendor_channel_map[channel];};
 	Vendor getVendor() const {return vendor;}
-	void setTXID(const unsigned int& txid) {this->txid = txid;};
-	unsigned int getTXID() const {return txid;};
+	void setTXID(const unsigned long int& txid) {this->txid = txid;};
+	unsigned long int getTXID() const {return txid;};
 	void setState(const unsigned char& sensor_state) {this->sensor_state = sensor_state;};
 	unsigned char getState() const {return sensor_state;};
 private:
 	bool processed_state {true};
 	Vendor vendor {UNKNOWN};
-	unsigned int txid {};
+	unsigned long int txid {};
 	unsigned char sensor_state {};
 };
 

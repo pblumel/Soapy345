@@ -37,7 +37,7 @@ void ManchesterDecoder::add(const bool& symbol_state) {
 }
 
 
-const unsigned int ManchesterDecoder::pop_all() {
+const unsigned long int ManchesterDecoder::pop_all() {
 	auto temp = output_data;
 	this->clear();
 	return temp;

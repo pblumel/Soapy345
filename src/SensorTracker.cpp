@@ -18,7 +18,7 @@ SensorTracker::~SensorTracker() {	// Print summary of sensor activity
 }
 
 
-void SensorTracker::push(const unsigned int& txid, const unsigned char& sensor_state) {
+void SensorTracker::push(const unsigned long int& txid, const unsigned char& sensor_state) {
 	auto sensor = sensors.find(txid);
 	if (sensor != sensors.end()) {	// Sensor detected previously
 		// Update counter and time for messages received from this sensor
@@ -57,7 +57,7 @@ void SensorTracker::push(const unsigned int& txid, const unsigned char& sensor_s
 		sensorData temp;
 		temp.sensor_state = sensor_state;
 		temp.last_seen = time(NULL);
-		sensors.insert(std::pair<unsigned int, sensorData>(txid, temp));
+		sensors.insert(std::pair<unsigned long int, sensorData>(txid, temp));
 
 		// Output debug info to console
 		std::cout << std::endl;

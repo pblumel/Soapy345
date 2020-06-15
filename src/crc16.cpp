@@ -2,7 +2,7 @@
 #include <algorithm>
 
 
-void CRC16::push(const unsigned int& data, const unsigned int& num_bits, const bool& accumulate) {
+void CRC16::push(const unsigned long int& data, const unsigned int& num_bits, const bool& accumulate) {
 	bool ov;
 
 	// Process each bit of data from MSB to LSB
@@ -22,7 +22,7 @@ void CRC16::push(const unsigned int& data, const unsigned int& num_bits, const b
 }
 
 
-void CRC16::push(const unsigned int& data, const unsigned int& num_bits) {
+void CRC16::push(const unsigned long int& data, const unsigned int& num_bits) {
 	push(data, num_bits, true);	// Public method always accumulates data bits
 }
 
