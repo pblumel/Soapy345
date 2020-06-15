@@ -31,12 +31,12 @@ class SensorMessage {
 public:
 	SensorMessage(const unsigned char& channel): vendor(vendor_channel_map[channel]) {};
 	Vendor getVendor() const {return vendor;}
-	unsigned int getHeader() const {return header;};
+	unsigned long int getHeader() const {return header;};
 	unsigned long int getTXID() const {return txid;};
 	unsigned char getState() const {return sensor_state;};
 private:
 	const Vendor vendor;
-	unsigned int header {};
+	unsigned long int header {};
 	unsigned long int txid {};
 	unsigned char sensor_state {};
 };

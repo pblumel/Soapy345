@@ -130,7 +130,7 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 
 				if (manchester_decoder.size() == CRC_BITS) {
 					// Verify CRC
-					auto rx_crc = manchester_decoder.pop_all();
+					char16_t rx_crc = manchester_decoder.pop_all();
 					if (rx_crc == crc16.getCRC()) {
 						// Temporarily print Vivint sensor message hex data for analysis
 						// CRC parameters are known for init messages, but not the regular status messages. The data fields are different and not yet understood so don't
