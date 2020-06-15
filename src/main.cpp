@@ -21,13 +21,16 @@
 #define SENSOR_BW 40e3
 #define PULSE_WIDTH 130e-6	// 130 us
 
-#define IF_FILT_ORDER 9
-#define IF_DECIMATION 4
+#define IF_FILT_ORDER 11
+#define IF_FILT_DECIMATION 4
 
-#define BB_FILT_CUTOFF 1300
-#define BB_FILT_ORDER 15	// Must be odd for type 1 filter
-#define BB_DECIMATION 2
+#define BB_DC_FILT_CUTOFF 1530
+#define BB_DC_FILT_ORDER 15	// Must be odd for type 1 filter
+#define BB_DC_FILT_DECIMATION 1
 
+#define BB_LP_FILT_CUTOFF 9800
+#define BB_LP_FILT_ORDER 5
+#define BB_LP_FILT_DECIMATION 2
 
 using std::cout;
 using std::cerr;
@@ -168,19 +171,19 @@ int main() {
 	   -----------------------------------------*/
 
 	// Configure IF (complex LPF with frequency Xlation) and BB (HPF) filters
-	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0), IF_DECIMATION, SENSOR_BW/2,
+	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0), IF_FILT_DECIMATION, SENSOR_BW/2,
 			sdr->getFrequency(SOAPY_SDR_RX, 0)-SIG_FREQ);	// Includes frequency translation.
 															// The HackRF One samples have significant DC noise, so
 															// tuning the hardware to some offset frequency and translating
 															// the signal back to FFT center in the digital domain greatly
 															// improves SNR.
-	Filter<float> BBfilter(HPF, BB_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0)/IF_DECIMATION, BB_DECIMATION, BB_FILT_CUTOFF);
+	Filter<float> BB_DC_remove(HPF, BB_DC_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0)/IF_FILT_DECIMATION, BB_DC_FILT_DECIMATION, BB_DC_FILT_CUTOFF);
+	Filter<float> BB_LP_filter(LPF, BB_LP_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0)/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION), BB_LP_FILT_DECIMATION, BB_LP_FILT_CUTOFF);
 
 	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
 	// The decoder computes more accurate SPS estimations per-message using sync bits
 	// for overall SPS accuracy throughout the message.
-	SensorMessageReceiver decoder(PULSE_WIDTH*(SAMP_RATE/(IF_DECIMATION*BB_DECIMATION)));
-	SensorMessage* sensor_message = nullptr;
+	SensorMessageReceiver decoder(PULSE_WIDTH*(SAMP_RATE/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION*BB_LP_FILT_DECIMATION)));
 	SensorTracker sensor_tracker;
 
 	// Loop through sample buffers until sample stream is terminated
@@ -205,15 +208,19 @@ int main() {
 				if (filt_samp) {	// If a sample has been output after decimation
 					// Compute magnitude (BB) and apply highpass filter to center signal at zero.
 					// This allows BB pulse widths to be determined by tracking zero-crossings.
-					auto BB_filt_samp = BBfilter.compute(filt_samp->real()*filt_samp->real() + filt_samp->imag()*filt_samp->imag());
-					if (BB_filt_samp) {	// If a sample has been output after decimation
-						// Convert samples to a boolean square wave using sign bits
-						sensor_message = decoder.push(!signbit(*BB_filt_samp));
+					auto BB_DC_remove_samp = BB_DC_remove.compute(filt_samp->real()*filt_samp->real() + filt_samp->imag()*filt_samp->imag());
+					if (BB_DC_remove_samp) {	// If a sample has been output after decimation
+						// Use a lowpass filter to clean up signal and reduce false zero crossings
+						auto BB_LP_filt_samp = BB_LP_filter.compute(*BB_DC_remove_samp);
+						if (BB_LP_filt_samp) {	// If a sample has been output after decimation
+							// Convert samples to a boolean square wave using sign bits
+							SensorMessage* sensor_message = decoder.push(!signbit(*BB_LP_filt_samp));
 
-						// Process this sensor message if it hasn't been already
-						if (!sensor_message->isProcessed()) {
-							sensor_tracker.push(sensor_message->getTXID(), sensor_message->getState());
-							sensor_message->setProcessed();
+							// Process this sensor message if it hasn't been already
+							if (!sensor_message->isProcessed()) {
+								sensor_tracker.push(sensor_message->getTXID(), sensor_message->getState());
+								sensor_message->setProcessed();
+							}
 						}
 					}
 				}
