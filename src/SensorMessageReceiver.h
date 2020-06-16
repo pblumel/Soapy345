@@ -50,6 +50,7 @@ public:
 					// -1 slot is required because 11b in the manchester sync sequence only takes 1 slot
 	SensorMessage* push(const bool& sample);
 private:
+	void resetToSync() {message_state = SYNC; symbol_len_tracker.resetSyncAvg();};
 	bool symbol_state {};
 	unsigned int rx_sync_sr {};
 	SymbolLenTracker<unsigned int> symbol_len_tracker;	// Shortened window size due to ignored sync bits
