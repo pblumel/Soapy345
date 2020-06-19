@@ -2,7 +2,7 @@
 #define MANCHESTERDECODER_H_
 
 
-enum ManchesterExceptions {INVALID_MANCHESTER};
+enum ManchesterExceptions {INVALID_MANCHESTER, CAPACITY_EXCEEDED};
 
 
 class ManchesterDecoder {

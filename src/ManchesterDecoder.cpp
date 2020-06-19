@@ -1,4 +1,5 @@
 #include "ManchesterDecoder.h"
+#include <iostream>
 
 
 const bool ManchesterDecoder::decode(const bool& first_bit, const bool& second_bit) const {
@@ -13,6 +14,11 @@ const bool ManchesterDecoder::decode(const bool& first_bit, const bool& second_b
 
 
 void ManchesterDecoder::add(const bool& symbol_state) {
+	if (output_size/8 == sizeof(output_data)) {
+		std::cerr << "The maximum number of bits, " << output_size << ", has been added to the Manchester decoder. Cannot add more." << std::endl;
+		throw CAPACITY_EXCEEDED;
+	}
+
 	if (first_state == 0xFF) {	// Variable is unset,
 								// this is the first state of the manchester sequence
 		first_state = symbol_state;
