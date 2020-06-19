@@ -6,6 +6,9 @@
 #include <complex>
 
 
+enum SignalGeneratorError {INSUFFICIENT_SAMP_RATE, PHASE_DISCONTINUITY};
+
+
 template <typename T>
 class SignalGenerator {
 public:
@@ -21,9 +24,18 @@ private:
 
 template <typename T>
 SignalGenerator<T>::SignalGenerator(const unsigned int& samp_rate, const int& freq) {
+	// Abort if the requested frequency cannot be generated at the specified sample rate
+	if (samp_rate/2 < abs(freq)) {
+		throw INSUFFICIENT_SAMP_RATE;
+	}
+
 	// Determine number of samples to generate such that there are no discontinuities
 	while ((abs(freq)*num_samples) % samp_rate != 0) {
 		num_samples++;
+	}
+
+	if (num_samples == 0) {	// If there was overflow, no number of samples resulted in continuous phase
+		throw PHASE_DISCONTINUITY;
 	}
 
 	// Allocate sample lookup table
