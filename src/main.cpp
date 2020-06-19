@@ -196,9 +196,7 @@ int main() {
 		int ret = sdr->readStream(rx_stream, buffs, RX_BUF_SIZE, flags, time_ns, 1e5);
 		
 		if (ret < 0) {	// Report stream errors
-			if (ret == SOAPY_SDR_OVERFLOW) {
-				cout << "-----OVERFLOW-----" << endl;
-			} else if (ret != SOAPY_SDR_TIMEOUT) {
+			if ((ret != SOAPY_SDR_TIMEOUT) & (ret != SOAPY_SDR_OVERFLOW)) {
 				cout << "Unknown readStream return code " << ret << endl;
 			}
 		} else {	// If sample stream is intact, process samples in buffer
