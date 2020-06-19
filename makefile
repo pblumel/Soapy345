@@ -34,7 +34,7 @@ clean:
 	rm -f $(BUILD_PATH)/$(PROJ_NAME) $(BUILD_PATH)/*.o
 
 # Dependency Rules
-$(BUILD_PATH)/main.o: filt.h SensorMessageReceiver.h SensorTracker.h
+$(BUILD_PATH)/main.o: filt.h SignalGenerator.h SensorMessageReceiver.h SensorTracker.h
 $(BUILD_PATH)/SensorMessageReceiver.o: SensorMessageReceiver.h SymbolLenTracker.h ManchesterDecoder.h crc16.h
 $(BUILD_PATH)/ManchesterDecoder.o: ManchesterDecoder.h
 $(BUILD_PATH)/crc16.o: crc16.h

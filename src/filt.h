@@ -1,6 +1,9 @@
 #ifndef FILT_H_
 #define FILT_H_
 
+#include "SignalGenerator.h"
+
+#include <memory>
 #include <complex>
 
 enum filterType {LPF, HPF};
@@ -8,24 +11,16 @@ enum filterType {LPF, HPF};
 template <typename T>
 class Filter {
 public:
-	Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const int& xlation_freq);
-	Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq);
-	~Filter();
+	Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const int& xlation_freq = 0);
 	T* compute(const T& sample);
 private:
-	void computeLPFTaps();
-	void computeHPFTaps();
-	T getLOSamp(const unsigned int& step) const;
-	const unsigned int num_taps {};
-	const unsigned int samp_rate {};
-	const unsigned int decimation {};
-	const unsigned int cutoff_freq {};
-	const float normalized_xlation_freq {0.0};
-	unsigned int num_LO_samples {1};
-	unsigned int LO_step {};
-	T* LO_samples {nullptr};
-	float* taps {nullptr};
-	T* shift_register {nullptr};
+	void computeLPFTaps(const unsigned int& samp_rate, const unsigned int& cutoff_freq);
+	void computeHPFTaps(const unsigned int& samp_rate, const unsigned int& cutoff_freq);
+	std::unique_ptr<SignalGenerator<T>> localOscillator;
+	const unsigned int num_taps;
+	const unsigned int decimation;
+	std::unique_ptr<float[]> taps;
+	std::unique_ptr<T[]> shift_register;
 	unsigned int decimation_counter {0};
 	T filt_output;
 };
@@ -33,52 +28,20 @@ private:
 
 template <typename T>
 Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const int& xlation_freq)
-	: num_taps(num_taps), samp_rate(samp_rate), decimation(decimation), cutoff_freq(cutoff_freq), normalized_xlation_freq((2*M_PI*xlation_freq) / samp_rate) {
+	: num_taps(num_taps), decimation(decimation) {
 
-	shift_register = new T[this->num_taps];
-	taps = new float[this->num_taps];
-
-	if (filt_t == LPF) {
-		computeLPFTaps();
-	} else if (filt_t == HPF) {
-		computeHPFTaps();
-	}
-
-	// Determine number of LO samples to generate for frequency xlation such that there are no discontinuities
-	while ((abs(xlation_freq)*num_LO_samples) % samp_rate != 0) {
-		num_LO_samples++;
-	}
-
-	// Allocate LO sample lookup table
-	LO_samples = new T[num_LO_samples];
-
-	// Compute LO values
-	for (unsigned int i = 0; i<num_LO_samples; i++) {
-		LO_samples[i] = getLOSamp(i);
-	}
-}
-
-
-template <typename T>
-Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq)
-	: num_taps(num_taps), samp_rate(samp_rate), decimation(decimation), cutoff_freq(cutoff_freq) {
-
-	shift_register = new T[this->num_taps];
-	taps = new float[this->num_taps];
+	shift_register = std::make_unique<T[]>(num_taps);
+	taps = std::make_unique<float[]>(num_taps);
 
 	if (filt_t == LPF) {
-		computeLPFTaps();
+		computeLPFTaps(samp_rate, cutoff_freq);
 	} else if (filt_t == HPF) {
-		computeHPFTaps();
+		computeHPFTaps(samp_rate, cutoff_freq);
 	}
-}
 
-
-template <typename T>
-Filter<T>::~Filter() {
-	 delete[] shift_register;
-	 delete[] taps;
-	 delete[] LO_samples;
+	if (xlation_freq != 0) {	// If frequency translation has been requested, create a local oscillator
+		localOscillator = std::make_unique<SignalGenerator<T>>(samp_rate, xlation_freq);
+	}
 }
 
 
@@ -91,24 +54,22 @@ T* Filter<T>::compute(const T& sample) {
 	shift_register[0] = sample;
 
 	// If frequency translation is enabled, mix new sample with digital LO
-	if (normalized_xlation_freq != 0.0) {
-		shift_register[0] *= LO_samples[LO_step];
-		LO_step = (LO_step+1) % num_LO_samples;	// Prepare LO generator for next sample
+	if (localOscillator) {
+		shift_register[0] *= localOscillator->sample();
 	}
 
-	decimation_counter++;
-	if (decimation_counter == decimation) {	// Compute filtered output sample
-		decimation_counter = 0;
+	if (++decimation_counter != decimation) {	// If this sample is to be decimated, skip computing the sample
+		return nullptr;
+	}
+	decimation_counter = 0;	// Reset decimator
 
-		filt_output = 0;
-		for (unsigned int i = 0; i < num_taps; i++) {
-			filt_output += shift_register[i] * taps[i];
-		}
-
-		return &filt_output;
+	// Decimation completed, now compute and output a sample
+	filt_output = 0;
+	for (unsigned int i = 0; i < num_taps; i++) {
+		filt_output += shift_register[i] * taps[i];
 	}
 
-	return nullptr;
+	return &filt_output;
 }
 
 
@@ -116,50 +77,37 @@ T* Filter<T>::compute(const T& sample) {
  * https://www.vyssotski.ch/BasicsOfInstrumentation/SpikeSorting/Design_of_FIR_Filters.pdf
  */
 template <typename T>
-void Filter<T>::computeLPFTaps() {
-	double normalized_cutoff_freq = (2*M_PI*cutoff_freq) / samp_rate;
-	double delayed_impulse_response = 0;
+void Filter<T>::computeLPFTaps(const unsigned int& samp_rate, const unsigned int& cutoff_freq) {
+	float normalized_cutoff_freq = (2*M_PI*cutoff_freq) / samp_rate;
 
 	// Determine ideal filter coefficients for LPF
 	for (unsigned int tap = 0; tap < num_taps; tap++) {
-		delayed_impulse_response = tap - (num_taps - 1.0)/2.0;
-		if (delayed_impulse_response == 0.0) {
+		float center_tap_offset = tap - (num_taps - 1.0)/2.0;
+		if (center_tap_offset == 0.0) {
 			taps[tap] = normalized_cutoff_freq/M_PI;
 		} else {
-			taps[tap] = sin(normalized_cutoff_freq * delayed_impulse_response)/
-					(M_PI * delayed_impulse_response);
+			taps[tap] = sin(normalized_cutoff_freq * center_tap_offset)/
+					(M_PI * center_tap_offset);
 		}
 	}
 }
 
 
 template <typename T>
-void Filter<T>::computeHPFTaps() {
-	double normalized_cutoff_freq = (2*M_PI*cutoff_freq) / samp_rate;
-	double delayed_impulse_response = 0;
+void Filter<T>::computeHPFTaps(const unsigned int& samp_rate, const unsigned int& cutoff_freq) {
+	float normalized_cutoff_freq = (2*M_PI*cutoff_freq) / samp_rate;
 
 	// Determine ideal filter coefficients for HPF
 	for (unsigned int tap = 0; tap < num_taps; tap++) {
-		delayed_impulse_response = tap - (num_taps - 1.0)/2.0;
-		if (delayed_impulse_response == 0.0) {
+		float center_tap_offset = tap - (num_taps - 1.0)/2.0;
+		if (center_tap_offset == 0.0) {
 			taps[tap] = 1.0-normalized_cutoff_freq/M_PI;
 		} else {
-			taps[tap] = -sin(normalized_cutoff_freq * delayed_impulse_response)/
-					(M_PI * delayed_impulse_response);
+			taps[tap] = -sin(normalized_cutoff_freq * center_tap_offset)/
+					(M_PI * center_tap_offset);
 		}
 	}
 }
 
-
-template <>
-std::complex<float> Filter<std::complex<float>>::getLOSamp(const unsigned int& step) const {	// Get the appropriate mixer value for the current sample
-	return std::complex<float>(cos(step * normalized_xlation_freq), sin(step * normalized_xlation_freq));
-}
-
-
-template <typename T>
-T Filter<T>::getLOSamp(const unsigned int& step) const {	// Get the appropriate mixer value for the current sample
-	return cos(step * normalized_xlation_freq);
-}
 
 #endif /* FILT_H_ */
