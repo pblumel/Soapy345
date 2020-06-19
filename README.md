@@ -6,6 +6,7 @@ Currently, baseline hardware functionality and signal processing functionality i
 1. apt install build-essential libsoapysdr-dev soapysdr-module-hackrf
 1. git clone https://github.com/pblumel/Soapy345.git
 1. cd Soapy345
+1. make all
 1. sudo make install
 1. Soapy345
 
