@@ -2,7 +2,7 @@ PROJ_NAME = Soapy345
 VPATH = src
 BUILD_PATH = build
 
-OBJECTS = main.o SensorMessageReceiver.o ManchesterDecoder.o crc16.o SensorTracker.o
+OBJECTS = main.o SensorMessageReceiver.o ManchesterDecoder.o crc16.o SensorTracker.o SensorHistory.o
 OBJ_FILES = $(addprefix build/,$(OBJECTS))
 
 
@@ -34,8 +34,9 @@ clean:
 	rm -f $(BUILD_PATH)/$(PROJ_NAME) $(BUILD_PATH)/*.o
 
 # Dependency Rules
-$(BUILD_PATH)/main.o: filt.h SignalGenerator.h SensorMessageReceiver.h SensorTracker.h
+$(BUILD_PATH)/main.o: filt.h SignalGenerator.h SensorMessageReceiver.h SensorTracker.h SensorHistory.h
 $(BUILD_PATH)/SensorMessageReceiver.o: SensorMessageReceiver.h SymbolLenTracker.h ManchesterDecoder.h crc16.h
 $(BUILD_PATH)/ManchesterDecoder.o: ManchesterDecoder.h
 $(BUILD_PATH)/crc16.o: crc16.h
-$(BUILD_PATH)/SensorTracker.o: SensorTracker.h SensorMessageReceiver.h
+$(BUILD_PATH)/SensorTracker.o: SensorTracker.h SensorHistory.h SensorMessageReceiver.h
+$(BUILD_PATH)/SensorHistory.o: SensorHistory.h SensorMessageReceiver.h
