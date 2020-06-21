@@ -10,7 +10,9 @@
 
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <complex>
+#include <cstring>
 
 
 #define RX_BUF_SIZE 1024
@@ -36,17 +38,102 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::complex;
+using std::strcmp;
+
 
 bool not_terminated = true;
+
+
+void printHelp(char* command) {
+	cerr << "Usage:" << endl << command << " [INPUT FILE]" << endl << endl;
+	cerr << "INPUT FILE: Optional stream of CF32 (complex floating point) values, compatible with GNU Radio File Source/Sink blocks. "
+			"When not specified, SDR hardware is used by default." << endl;
+}
+
 
 void signalHandler(int signum) {
 	not_terminated = false;
 }
 
 
-int main() {
-	// register signal SIGINT and signal handler  
-	signal(SIGINT, signalHandler);
+void processSample(const complex<float>& sample, Filter<complex<float>>& IFfilter, Filter<float>& BB_DC_remove, Filter<float>& BB_LP_filter, SensorMessageReceiver& decoder, SensorTracker& sensor_tracker) {
+	// Apply frequency translation and lowpass filter to IF
+	auto filt_samp = IFfilter.compute(sample);
+	if (filt_samp) {	// If a sample has been output after decimation
+		// Compute magnitude (BB) and apply highpass filter to center signal at zero.
+		// This allows BB pulse widths to be determined by tracking zero-crossings.
+		auto BB_DC_remove_samp = BB_DC_remove.compute(filt_samp->real()*filt_samp->real() + filt_samp->imag()*filt_samp->imag());
+		if (BB_DC_remove_samp) {	// If a sample has been output after decimation
+			// Use a lowpass filter to clean up signal and reduce false zero crossings
+			auto BB_LP_filt_samp = BB_LP_filter.compute(*BB_DC_remove_samp);
+			if (BB_LP_filt_samp) {	// If a sample has been output after decimation
+				// Convert samples to a boolean square wave using sign bits
+				SensorMessage* sensor_message = decoder.push(!signbit(*BB_LP_filt_samp));
+
+				// Process this sensor message if it hasn't been already
+				if (!sensor_message->isProcessed()) {
+					sensor_tracker.push(sensor_message->getTXID(), sensor_message->getState());
+					sensor_message->setProcessed();
+				}
+			}
+		}
+	}
+}
+
+
+int main(int argc, char* argv[]) {
+	/* --------------------------------------------
+	 * ------CREATE SIGNAL PROCESSING OBJECTS------
+	   --------------------------------------------*/
+
+	// Configure IF (complex LPF with frequency Xlation) and BB (HPF) filters
+	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, SAMP_RATE, IF_FILT_DECIMATION, SENSOR_BW/2,
+			TUNE_FREQ_OFFSET);	// Includes frequency translation.
+															// The HackRF One samples have significant DC noise, so
+															// tuning the hardware to some offset frequency and translating
+															// the signal back to FFT center in the digital domain greatly
+															// improves SNR.
+	Filter<float> BB_DC_remove(HPF, BB_DC_FILT_ORDER, SAMP_RATE/IF_FILT_DECIMATION, BB_DC_FILT_DECIMATION, BB_DC_FILT_CUTOFF);
+	Filter<float> BB_LP_filter(LPF, BB_LP_FILT_ORDER, SAMP_RATE/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION), BB_LP_FILT_DECIMATION, BB_LP_FILT_CUTOFF);
+
+	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
+	// The decoder computes more accurate SPS estimations per-message using sync bits
+	// for overall SPS accuracy throughout the message.
+	SensorMessageReceiver decoder(PULSE_WIDTH*(SAMP_RATE/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION*BB_LP_FILT_DECIMATION)));
+	SensorTracker sensor_tracker;
+
+
+
+
+	/* --------------------------------------------
+	 * -----------IDENTIFY SAMPLE SOURCE-----------
+	   --------------------------------------------*/
+
+	if (argc > 1) {	// Use file, else look for SDR
+		for (signed int i = 1; i<argc; i++) {
+			if (!strcmp(argv[i], "-h") | !strcmp(argv[i], "--help")) {
+				printHelp(argv[0]);
+
+				return EXIT_SUCCESS;
+			}
+		}
+
+		std::ifstream inputFile(argv[1], std::ios::in | std::ios::binary);
+
+		if (!inputFile) {
+			cerr << "\"" << argv[1] << "\"" << " is not a valid input file." << endl << endl;
+			printHelp(argv[0]);
+
+			return EXIT_FAILURE;
+		}
+
+		complex<float> sample;
+		while (inputFile.read((char *)&sample, sizeof(complex<float>))) {
+			processSample(sample, IFfilter, BB_DC_remove, BB_LP_filter, decoder, sensor_tracker);
+		}
+
+		return EXIT_SUCCESS;
+	}
 	
 
 
@@ -170,21 +257,8 @@ int main() {
 	 * ---------BEGIN SIGNAL PROCESSING---------
 	   -----------------------------------------*/
 
-	// Configure IF (complex LPF with frequency Xlation) and BB (HPF) filters
-	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0), IF_FILT_DECIMATION, SENSOR_BW/2,
-			sdr->getFrequency(SOAPY_SDR_RX, 0)-SIG_FREQ);	// Includes frequency translation.
-															// The HackRF One samples have significant DC noise, so
-															// tuning the hardware to some offset frequency and translating
-															// the signal back to FFT center in the digital domain greatly
-															// improves SNR.
-	Filter<float> BB_DC_remove(HPF, BB_DC_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0)/IF_FILT_DECIMATION, BB_DC_FILT_DECIMATION, BB_DC_FILT_CUTOFF);
-	Filter<float> BB_LP_filter(LPF, BB_LP_FILT_ORDER, sdr->getSampleRate(SOAPY_SDR_RX, 0)/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION), BB_LP_FILT_DECIMATION, BB_LP_FILT_CUTOFF);
-
-	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
-	// The decoder computes more accurate SPS estimations per-message using sync bits
-	// for overall SPS accuracy throughout the message.
-	SensorMessageReceiver decoder(PULSE_WIDTH*(SAMP_RATE/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION*BB_LP_FILT_DECIMATION)));
-	SensorTracker sensor_tracker;
+	// Register signal SIGINT and signal handler to cleanly exit processing loop
+	signal(SIGINT, signalHandler);
 
 	// Loop through sample buffers until sample stream is terminated
 	while (not_terminated) {
@@ -201,27 +275,7 @@ int main() {
 			}
 		} else {	// If sample stream is intact, process samples in buffer
 			for (auto const& sample : buff) {
-				// Apply frequency translation and lowpass filter to IF
-				auto filt_samp = IFfilter.compute(sample);
-				if (filt_samp) {	// If a sample has been output after decimation
-					// Compute magnitude (BB) and apply highpass filter to center signal at zero.
-					// This allows BB pulse widths to be determined by tracking zero-crossings.
-					auto BB_DC_remove_samp = BB_DC_remove.compute(filt_samp->real()*filt_samp->real() + filt_samp->imag()*filt_samp->imag());
-					if (BB_DC_remove_samp) {	// If a sample has been output after decimation
-						// Use a lowpass filter to clean up signal and reduce false zero crossings
-						auto BB_LP_filt_samp = BB_LP_filter.compute(*BB_DC_remove_samp);
-						if (BB_LP_filt_samp) {	// If a sample has been output after decimation
-							// Convert samples to a boolean square wave using sign bits
-							SensorMessage* sensor_message = decoder.push(!signbit(*BB_LP_filt_samp));
-
-							// Process this sensor message if it hasn't been already
-							if (!sensor_message->isProcessed()) {
-								sensor_tracker.push(sensor_message->getTXID(), sensor_message->getState());
-								sensor_message->setProcessed();
-							}
-						}
-					}
-				}
+				processSample(sample, IFfilter, BB_DC_remove, BB_LP_filter, decoder, sensor_tracker);
 			}
 		}
 	}
