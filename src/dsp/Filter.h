@@ -1,5 +1,5 @@
-#ifndef FILT_H_
-#define FILT_H_
+#ifndef FILTER_H_
+#define FILTER_H_
 
 #include "SignalGenerator.h"
 
@@ -110,4 +110,4 @@ void Filter<T>::computeHPFTaps(const unsigned int& samp_rate, const unsigned int
 }
 
 
-#endif /* FILT_H_ */
+#endif /* FILTER_H_ */

@@ -3,7 +3,7 @@
 
 #include "SymbolLenTracker.h"
 #include "ManchesterDecoder.h"
-#include "crc16.h"
+#include "CRC16.h"
 
 #define SYNC_LEN 32-2	// Length of sync sequence with manchester encoding shortened due to two ignored sync bits
 #define SYNC_LEVELS_FORMAT 0x55555556	// Sync sequence with manchester encoding

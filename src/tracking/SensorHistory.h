@@ -2,7 +2,7 @@
 #define SRC_SENSORHISTORY_H_
 
 
-#include "SensorMessageReceiver.h"
+#include "../messaging/SensorMessageReceiver.h"
 
 #include <string>
 #include <vector>

@@ -4,9 +4,9 @@
 #include <SoapySDR/Types.hpp>
 #include <SoapySDR/Formats.hpp>
 
-#include "filt.h"
-#include "SensorMessageReceiver.h"
-#include "SensorTracker.h"
+#include "dsp/Filter.h"
+#include "messaging/SensorMessageReceiver.h"
+#include "tracking/SensorTracker.h"
 
 #include <iostream>
 #include <iomanip>
