@@ -37,8 +37,12 @@
 using std::cout;
 using std::cerr;
 using std::endl;
-using std::complex;
+
 using std::strcmp;
+
+using std::ifstream;
+
+using std::complex;
 
 
 bool not_terminated = true;
@@ -87,6 +91,44 @@ void processSample(const complex<float>& sample, Filter<complex<float>>& IFfilte
 
 
 int main(int argc, char* argv[]) {
+
+	/* --------------------------------------------
+	 * -----------IDENTIFY SAMPLE SOURCE-----------
+	   --------------------------------------------*/
+
+	ifstream inputFile;
+	SoapySDR::KwargsList devices;
+	if (argc > 1) {	// If one or more parameters were passed in
+		// Check for help request
+		for (signed int i = 1; i<argc; i++) {
+			if (!strcmp(argv[i], "-h") | !strcmp(argv[i], "--help")) {
+				printHelp(argv[0]);
+
+				return EXIT_SUCCESS;
+			}
+		}
+
+		// If no help request received, try to open a user-selected input file
+		inputFile.open(argv[1], std::ios::in | std::ios::binary);
+		if (!inputFile) {
+			cerr << "\"" << argv[1] << "\"" << " is not a valid input file." << endl << endl;
+			printHelp(argv[0]);
+
+			return EXIT_FAILURE;
+		}
+	} else {	// Default to SDR hardware sample source and verify that one is available
+		// Get list of connected devices
+		devices = SoapySDR::Device::enumerate();
+
+		if (devices.empty()) {
+			cout << "No devices found, please connect a device and try again." << endl;
+			return EXIT_FAILURE;
+		}
+	}
+
+
+
+
 	/* --------------------------------------------
 	 * ------CREATE SIGNAL PROCESSING OBJECTS------
 	   --------------------------------------------*/
@@ -110,50 +152,18 @@ int main(int argc, char* argv[]) {
 
 
 
-	/* --------------------------------------------
-	 * -----------IDENTIFY SAMPLE SOURCE-----------
-	   --------------------------------------------*/
+	/* -------------------------------------------
+	 * ----INITIATE THE SELECTED SAMPLE SOURCE----
+	   -------------------------------------------*/
 
-	if (argc > 1) {	// Use file, else look for SDR
-		for (signed int i = 1; i<argc; i++) {
-			if (!strcmp(argv[i], "-h") | !strcmp(argv[i], "--help")) {
-				printHelp(argv[0]);
-
-				return EXIT_SUCCESS;
-			}
-		}
-
-		std::ifstream inputFile(argv[1], std::ios::in | std::ios::binary);
-
-		if (!inputFile) {
-			cerr << "\"" << argv[1] << "\"" << " is not a valid input file." << endl << endl;
-			printHelp(argv[0]);
-
-			return EXIT_FAILURE;
-		}
-
+	if (inputFile.is_open()) {	// If file source was selected, fully process the file
 		complex<float> sample;
 		while (inputFile.read((char *)&sample, sizeof(complex<float>))) {
 			processSample(sample, IFfilter, BB_DC_remove, BB_LP_filter, message_receiver, sensor_tracker);
 		}
 
 		return EXIT_SUCCESS;
-	}
-	
-
-
-
-	/* -------------------------------------------
-	 * ----------QUERY CONNECTED DEVICES----------
-	   -------------------------------------------*/
-
-	// Get list of connected devices
-	SoapySDR::KwargsList devices = SoapySDR::Device::enumerate();
-
-	if (devices.empty()) {
-		cout << "No devices found, please connect a device and try again." << endl;
-		return EXIT_FAILURE;
-	}
+	}	// Else default to SDR source
 
 	// Output list of connected devices and their properties
 	for (const auto& device : devices) {
@@ -164,20 +174,19 @@ int main(int argc, char* argv[]) {
 		cout << endl;
 	}
 
+	// Make device zero
+	SoapySDR::Device *sdr = SoapySDR::Device::make(devices[0]);
+	if (sdr == nullptr) {
+		cerr << "SoapySDR::Device::make failed" << endl;
+		return EXIT_FAILURE;
+	}
+
 
 
 
 	/* -------------------------------------------
 	 * -----------QUERY SELECTED DEVICE-----------
 	   -------------------------------------------*/
-
-	// Make device zero
-	SoapySDR::Device *sdr = SoapySDR::Device::make(devices[0]);
-
-	if (sdr == nullptr) {
-		cerr << "SoapySDR::Device::make failed" << endl;
-		return EXIT_FAILURE;
-	}
 
 	cout << endl << "HARDWARE OPTIONS" << endl;
 
