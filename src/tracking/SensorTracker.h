@@ -10,7 +10,7 @@
 class SensorTracker {
 public:
 	~SensorTracker();
-	void push(const unsigned long int& txid, const unsigned char& sensor_state);
+	void push(std::shared_ptr<SensorMessage> sensor_message);
 private:
 	std::map<const unsigned long int, SensorHistory> sensors;
 };

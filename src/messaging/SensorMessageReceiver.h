@@ -1,6 +1,8 @@
 #ifndef SENSORMESSAGERECEIVER_H_
 #define SENSORMESSAGERECEIVER_H_
 
+#include <memory>
+
 #include "SymbolLenTracker.h"
 #include "ManchesterDecoder.h"
 #include "CRC16.h"
@@ -22,19 +24,14 @@ static const Vendor vendor_channel_map[0x1<<CHANNEL_BITS] = {	// A map of channe
 
 
 class SensorMessage {
+	friend class SensorMessageReceiver;
 public:
-	void setProcessed() {processed_state = true;};
-	bool isProcessed() const {return processed_state;};
-	void newMessage() {processed_state = false;};
-	void idVendor(const unsigned char& channel) {vendor = vendor_channel_map[channel];};
+	SensorMessage(const unsigned char& channel): vendor(vendor_channel_map[channel]) {};
 	Vendor getVendor() const {return vendor;}
-	void setTXID(const unsigned long int& txid) {this->txid = txid;};
 	unsigned long int getTXID() const {return txid;};
-	void setState(const unsigned char& sensor_state) {this->sensor_state = sensor_state;};
 	unsigned char getState() const {return sensor_state;};
 private:
-	bool processed_state {true};
-	Vendor vendor {UNKNOWN};
+	const Vendor vendor;
 	unsigned long int txid {};
 	unsigned char sensor_state {};
 };
@@ -48,16 +45,16 @@ public:
 	SensorMessageReceiver(const float& est_symbol_len) :
 		symbol_len_tracker(SymbolLenTracker<unsigned int>(SYNC_LEN-1, est_symbol_len)) {};
 					// -1 slot is required because 11b in the manchester sync sequence only takes 1 slot
-	SensorMessage* push(const bool& sample);
+	std::shared_ptr<SensorMessage> push(const bool& sample);
 private:
-	void resetToSync() {message_state = SYNC; symbol_len_tracker.resetSyncAvg();};
+	void resetToSync() {message_state = SYNC; symbol_len_tracker.resetSyncAvg(); sensor_message.reset();};
 	bool symbol_state {};
 	unsigned int rx_sync_sr {};
 	SymbolLenTracker<unsigned int> symbol_len_tracker;	// Shortened window size due to ignored sync bits
 	ManchesterDecoder manchester_decoder;
 	CRC16 crc16;
 	messageState message_state {SYNC};
-	SensorMessage sensor_message;
+	std::shared_ptr<SensorMessage> sensor_message;
 };
 
 #endif /* SENSORMESSAGERECEIVER_H_ */

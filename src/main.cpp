@@ -56,7 +56,7 @@ void signalHandler(int signum) {
 }
 
 
-void processSample(const complex<float>& sample, Filter<complex<float>>& IFfilter, Filter<float>& BB_DC_remove, Filter<float>& BB_LP_filter, SensorMessageReceiver& decoder, SensorTracker& sensor_tracker) {
+void processSample(const complex<float>& sample, Filter<complex<float>>& IFfilter, Filter<float>& BB_DC_remove, Filter<float>& BB_LP_filter, SensorMessageReceiver& message_receiver, SensorTracker& sensor_tracker) {
 	// Apply frequency translation and lowpass filter to IF
 	auto filt_samp = IFfilter.compute(sample);
 	if (filt_samp) {	// If a sample has been output after decimation
@@ -67,14 +67,9 @@ void processSample(const complex<float>& sample, Filter<complex<float>>& IFfilte
 			// Use a lowpass filter to clean up signal and reduce false zero crossings
 			auto BB_LP_filt_samp = BB_LP_filter.compute(*BB_DC_remove_samp);
 			if (BB_LP_filt_samp) {	// If a sample has been output after decimation
-				// Convert samples to a boolean square wave using sign bits
-				SensorMessage* sensor_message = decoder.push(!signbit(*BB_LP_filt_samp));
-
-				// Process this sensor message if it hasn't been already
-				if (!sensor_message->isProcessed()) {
-					sensor_tracker.push(sensor_message->getTXID(), sensor_message->getState());
-					sensor_message->setProcessed();
-				}
+				// Convert samples to a boolean square wave using sign bits and decode messages
+				// Process sensor messages if they exist
+				sensor_tracker.push(message_receiver.push(!signbit(*BB_LP_filt_samp)));
 			}
 		}
 	}
@@ -99,7 +94,7 @@ int main(int argc, char* argv[]) {
 	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
 	// The decoder computes more accurate SPS estimations per-message using sync bits
 	// for overall SPS accuracy throughout the message.
-	SensorMessageReceiver decoder(PULSE_WIDTH*(SAMP_RATE/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION*BB_LP_FILT_DECIMATION)));
+	SensorMessageReceiver message_receiver(PULSE_WIDTH*(SAMP_RATE/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION*BB_LP_FILT_DECIMATION)));
 	SensorTracker sensor_tracker;
 
 
@@ -129,7 +124,7 @@ int main(int argc, char* argv[]) {
 
 		complex<float> sample;
 		while (inputFile.read((char *)&sample, sizeof(complex<float>))) {
-			processSample(sample, IFfilter, BB_DC_remove, BB_LP_filter, decoder, sensor_tracker);
+			processSample(sample, IFfilter, BB_DC_remove, BB_LP_filter, message_receiver, sensor_tracker);
 		}
 
 		return EXIT_SUCCESS;
@@ -275,7 +270,7 @@ int main(int argc, char* argv[]) {
 			}
 		} else {	// If sample stream is intact, process samples in buffer
 			for (auto const& sample : buff) {
-				processSample(sample, IFfilter, BB_DC_remove, BB_LP_filter, decoder, sensor_tracker);
+				processSample(sample, IFfilter, BB_DC_remove, BB_LP_filter, message_receiver, sensor_tracker);
 			}
 		}
 	}

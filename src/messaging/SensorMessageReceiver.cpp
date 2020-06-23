@@ -1,12 +1,13 @@
 #include "SensorMessageReceiver.h"
+
 #include <iostream>
 #include <iomanip>
 
 
-SensorMessage* SensorMessageReceiver::push(const bool& sample) {
+std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 	if (sample == symbol_state) {	// Continuation of the same symbol state
 		symbol_len_tracker++;
-		return &sensor_message;
+		return std::shared_ptr<SensorMessage>(nullptr);
 	}
 
 	// New symbol incoming, process received symbol(s)
@@ -33,7 +34,7 @@ SensorMessage* SensorMessageReceiver::push(const bool& sample) {
 				if (manchester_decoder.size() == CHANNEL_BITS) {
 					auto channel = manchester_decoder.pop_all();
 					if (channel < (0x1<<CHANNEL_BITS)) {	// Check bounds of valid channels
-						sensor_message.idVendor(channel);	// Determine vendor based on known correlations of vendors to specific channels
+						sensor_message = std::make_shared<SensorMessage>(channel);	// Determine vendor based on known correlations of vendors to specific channels
 					} else {
 						std::cerr << channel << " is not a valid channel. Channels range from 0-" << (0x1<<CHANNEL_BITS)-1 << "." << std::endl;
 						resetToSync();
@@ -44,10 +45,10 @@ SensorMessage* SensorMessageReceiver::push(const bool& sample) {
 					crc16.reset();
 					crc16.setPoly(0x8005);
 					// DEBUG OUTPUT
-					if (sensor_message.getVendor() == UNKNOWN) {
+					if (sensor_message->getVendor() == UNKNOWN) {
 						std::cout << std::endl;
 						std::cout << "No known vendor uses channel " << channel << ", may cause CRC failure." << std::endl;
-					} else if (sensor_message.getVendor() == TWOGIG) {
+					} else if (sensor_message->getVendor() == TWOGIG) {
 						crc16.setPoly(0x8050);
 					}
 					crc16.push(channel, CHANNEL_BITS);
@@ -67,8 +68,8 @@ SensorMessage* SensorMessageReceiver::push(const bool& sample) {
 						break;
 					}
 
-					sensor_message.setTXID(txid);
-					crc16.push(sensor_message.getTXID(), TXID_BITS);
+					sensor_message->txid = txid;
+					crc16.push(sensor_message->getTXID(), TXID_BITS);
 
 					message_state = SENSOR_STATE;
 				}
@@ -78,8 +79,8 @@ SensorMessage* SensorMessageReceiver::push(const bool& sample) {
 				manchester_decoder.add(symbol_state);
 
 				if (manchester_decoder.size() == SENSOR_STATE_BITS) {
-					sensor_message.setState(manchester_decoder.pop_all());
-					crc16.push(sensor_message.getState(), SENSOR_STATE_BITS);
+					sensor_message->sensor_state = manchester_decoder.pop_all();
+					crc16.push(sensor_message->getState(), SENSOR_STATE_BITS);
 
 					message_state = CRC;
 				}
@@ -91,12 +92,19 @@ SensorMessage* SensorMessageReceiver::push(const bool& sample) {
 				if (manchester_decoder.size() == CRC_BITS) {
 					// Verify CRC
 					if (manchester_decoder.pop_all() == crc16.getCRC()) {
-						sensor_message.newMessage();	// Declare this message ready for processing
-					} else {
-						std::cout << "CRC FAIL FOR DATA 0x" << std::hex << crc16.getData() << std::dec << std::endl;
+						symbol_len_tracker.newSymbol();
+						symbol_state = sample;
+
+						auto output_message = sensor_message;	// Save this good message before resetting
+						resetToSync();
+
+						return output_message;	// Declare this message ready for processing
+												// By returning here, a bit may be lost from the next message if it
+												// follows directly behind this one, but the likelihood is negligible
 					}
 
-					resetToSync();	// Message received, reset and wait for next message
+					std::cout << "CRC FAIL FOR DATA 0x" << std::hex << crc16.getData() << std::dec << std::endl;
+					resetToSync();	// Reset and wait for next message
 				}
 
 				break;
@@ -109,5 +117,5 @@ SensorMessage* SensorMessageReceiver::push(const bool& sample) {
 	symbol_len_tracker.newSymbol();
 	symbol_state = sample;
 
-	return &sensor_message;
+	return std::shared_ptr<SensorMessage>(nullptr);
 }
