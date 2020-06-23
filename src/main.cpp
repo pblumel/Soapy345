@@ -59,20 +59,30 @@ void signalHandler(int signum) {
 void processSample(const complex<float>& sample, Filter<complex<float>>& IFfilter, Filter<float>& BB_DC_remove, Filter<float>& BB_LP_filter, SensorMessageReceiver& message_receiver, SensorTracker& sensor_tracker) {
 	// Apply frequency translation and lowpass filter to IF
 	auto filt_samp = IFfilter.compute(sample);
-	if (filt_samp) {	// If a sample has been output after decimation
-		// Compute magnitude (BB) and apply highpass filter to center signal at zero.
-		// This allows BB pulse widths to be determined by tracking zero-crossings.
-		auto BB_DC_remove_samp = BB_DC_remove.compute(filt_samp->real()*filt_samp->real() + filt_samp->imag()*filt_samp->imag());
-		if (BB_DC_remove_samp) {	// If a sample has been output after decimation
-			// Use a lowpass filter to clean up signal and reduce false zero crossings
-			auto BB_LP_filt_samp = BB_LP_filter.compute(*BB_DC_remove_samp);
-			if (BB_LP_filt_samp) {	// If a sample has been output after decimation
-				// Convert samples to a boolean square wave using sign bits and decode messages
-				// Process sensor messages if they exist
-				sensor_tracker.push(message_receiver.push(!signbit(*BB_LP_filt_samp)));
-			}
-		}
+	if (!filt_samp) {	// If this sample is decimated
+		return;
 	}
+
+	// Compute magnitude (BB) and apply highpass filter to center signal at zero.
+	// This allows BB pulse widths to be determined by tracking zero-crossings.
+	auto BB_DC_remove_samp = BB_DC_remove.compute(
+			filt_samp->real()*filt_samp->real() +	// Real^2
+			filt_samp->imag()*filt_samp->imag());	// Imag^2
+	if (!BB_DC_remove_samp) {	// If this sample is decimated
+		return;
+	}
+
+	// Use a lowpass filter to clean up signal and reduce undesireable zero crossings
+	auto BB_LP_filt_samp = BB_LP_filter.compute(*BB_DC_remove_samp);
+	if (!BB_LP_filt_samp) {	// If this sample is decimated
+		return;
+	}
+
+	// Process sensor messages if they exist
+	sensor_tracker.push(	// SensorTracker gets messages from SensorMessageReceiver
+			message_receiver.push(	// Extract messages from square wave signal
+					!signbit(*BB_LP_filt_samp)));	// Float to square wave conversion
+													// 0 when <0, 1 when >=0
 }
 
 
