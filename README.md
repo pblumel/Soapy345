@@ -1,7 +1,8 @@
 # Soapy345
 A (WIP) 345 MHz sensor receiver based on the [SoapySDR](https://github.com/pothosware/SoapySDR) wrapper for the HackRF One. It is a rewrite of software I wrote previously in Python using GNU Radio.
 Currently, baseline hardware functionality and signal processing functionality is working, but needs some adjustment. Messages are received and verified using the CRC. Messages are used to track sensor state and output readable status change sumamries.
-</br>Binary CF32 input files can be passed in as a parameter instead of using a hardware SDR sample source.
+</br>Preliminary support for Vivint sensors has been added. The data is received, but cannot always be verified using the CRC. Some Vivint message types use standard CRC parameters, but most do not. The received CRC value is often different with the same input data, possibly indicating the use of a timer or event counter internal to the sensor which affects the CRC parameters in some way. The messages also contain an extra 32 bits over the standard 64 bit message format. 12 of the extra bits are used to lengthen the TXID, but the use of the other 20 extra bits is unknown.
+</br>Pre-recorded IQ samples stored to files in binary CF32 format can be passed in as a command line argument instead of using a hardware SDR sample source.
 
 ## Compile, Install, and Execute:
 1. apt install build-essential libsoapysdr-dev soapysdr-module-hackrf
