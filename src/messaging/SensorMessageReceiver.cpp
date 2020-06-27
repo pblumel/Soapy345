@@ -7,6 +7,14 @@
 std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 	if (sample == symbol_state) {	// Continuation of the same symbol state
 		symbol_len_tracker++;
+
+		return std::shared_ptr<SensorMessage>(nullptr);
+	}
+
+	if (!symbol_len_tracker.getCurSymbolCount()) {	// If the state change is too brief, it must be noise.
+		symbol_len_tracker++;						// Count these sample(s) as part of the next symbol instead.
+		symbol_state = sample;
+
 		return std::shared_ptr<SensorMessage>(nullptr);
 	}
 
