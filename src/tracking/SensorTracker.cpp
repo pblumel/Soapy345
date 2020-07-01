@@ -15,6 +15,26 @@ void printTXID(const Vendor& vendor, const unsigned long int& txid) {
 }
 
 
+void printDevice(const unsigned char& devid) {
+	switch (devid) {
+	case 0x18:
+		std::cout << "DW11";
+		break;
+	case 0x0f:
+		std::cout << "DW21R";
+		break;
+	case 0x14:
+		std::cout << "GB2";
+		break;
+	case 0x0a:
+		std::cout << "PIR2";
+		break;
+	default:
+		std::cout << "UNKNOWN";
+	}
+}
+
+
 SensorTracker::~SensorTracker() {	// Print summary of sensor activity
 	std::cout << std::endl;
 	std::cout << "## SENSOR SUMMARY ##" << std::endl;
@@ -46,7 +66,9 @@ void SensorTracker::push(std::shared_ptr<SensorMessage> sensor_message) {
 		sensor->second.updateSensorState(sensor_message->getState());
 	} else {
 		// Output debug info to console
-		std::cout << std::endl << "## ADD SENSOR ";
+		std::cout << std::endl << "## ADD ";
+		printDevice(sensor_message->getDEVID());
+		std::cout << " SENSOR ";
 		printTXID(sensor_message->getVendor(), sensor_message->getTXID());
 		std::cout << " ##" << std::endl;
 

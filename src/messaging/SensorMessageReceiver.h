@@ -13,6 +13,8 @@
 
 #define CHANNEL_BITS 4
 #define HEADER_BITS 20
+#define INIT_HEADER_BITS 12
+#define DEVID_BITS 8
 #define STD_TXID_BITS 20
 #define STD_TXID_MASK ((0x1<<STD_TXID_BITS)-1)
 #define VIVINT_TXID_BITS 32
@@ -32,17 +34,19 @@ public:
 	SensorMessage(const unsigned char& channel): vendor(vendor_channel_map[channel]) {};
 	Vendor getVendor() const {return vendor;}
 	unsigned long int getHeader() const {return header;};
+	unsigned char getDEVID() const {return devid;};
 	unsigned long int getTXID() const {return txid;};
 	unsigned char getState() const {return sensor_state;};
 private:
 	const Vendor vendor;
 	unsigned long int header {};
+	unsigned char devid {};
 	unsigned long int txid {};
 	unsigned char sensor_state {};
 };
 
 
-enum messageState {SYNC, CHANNEL, HEADER, TXID, SENSOR_STATE, CRC};
+enum messageState {SYNC, CHANNEL, HEADER, TXID, SENSOR_STATE, CRC, DEVID};
 
 
 class SensorMessageReceiver {

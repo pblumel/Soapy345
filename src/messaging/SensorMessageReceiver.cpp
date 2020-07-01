@@ -80,8 +80,25 @@ std::shared_ptr<SensorMessage> SensorMessageReceiver::push(const bool& sample) {
 				manchester_decoder.add(symbol_state);
 
 				if (manchester_decoder.size() == HEADER_BITS) {
+					message_state = SENSOR_STATE;
+				} else if ((sensor_message->getVendor() == VIVINT_INIT) & (manchester_decoder.size() == INIT_HEADER_BITS)) {
+					message_state = DEVID;
+				} else {
+					break;
+				}
+
+				{
+					auto num_devid_bits = manchester_decoder.size();
 					sensor_message->header = manchester_decoder.pop_all();
-					crc16.push(sensor_message->getHeader(), HEADER_BITS);
+					crc16.push(sensor_message->getHeader(), num_devid_bits);
+				}
+				break;
+			case DEVID:
+				manchester_decoder.add(symbol_state);
+
+				if (manchester_decoder.size() == DEVID_BITS) {
+					sensor_message->devid = manchester_decoder.pop_all();
+					crc16.push(sensor_message->getDEVID(), DEVID_BITS);
 
 					message_state = SENSOR_STATE;
 				}
