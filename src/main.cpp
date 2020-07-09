@@ -17,7 +17,7 @@
 
 #define RX_BUF_SIZE 1024
 
-#define SAMP_RATE 200e3
+#define SAMP_RATE 250e3
 #define SIG_FREQ 345006e3
 #define TUNE_FREQ_OFFSET -70e3	// Space the DC spike well away from the signal
 #define SENSOR_BW 40e3
@@ -233,6 +233,8 @@ int main(int argc, char* argv[]) {
 			sdr->setGain(SOAPY_SDR_RX, 0, gain, 20);
 		} else if (gain == "AMP") {
 			sdr->setGain(SOAPY_SDR_RX, 0, gain, 0);
+		} else if (gain == "TUNER") {	// RTL-SDR
+			sdr->setGain(SOAPY_SDR_RX, 0, gain, 40);
 		}
 		std::cout << " gain: " << std::setfill('0') << std::setw(2) << sdr->getGain(SOAPY_SDR_RX, 0, gain) << " dB" << std::endl;
 	}
