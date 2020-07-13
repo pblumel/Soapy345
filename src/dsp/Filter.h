@@ -8,6 +8,8 @@
 
 enum filterType {LPF, HPF};
 
+enum FiltError {SAMP_RATE_ZERO, TRANSITION_WIDTH_ZERO, ATTENUATION_ZERO};
+
 template <typename T>
 class Filter {
 public:
@@ -29,6 +31,19 @@ private:
 template <typename T>
 Filter<T>::Filter(const filterType& filt_t, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const unsigned int& transition_width, const unsigned int& attenuation, const int& xlation_freq)
 	: decimation(decimation) {
+
+	// Check for divide by zero scenarios
+	if (!samp_rate) {
+		throw SAMP_RATE_ZERO;
+	}
+	if (!transition_width) {
+		throw TRANSITION_WIDTH_ZERO;
+	}
+
+	// Check for zero taps scenarios
+	if (!attenuation) {
+		throw ATTENUATION_ZERO;
+	}
 
 	float normalized_transition = 1.0*transition_width/samp_rate;
 	float est_num_taps = attenuation/(22.0*normalized_transition);	// Harris Approximation
