@@ -23,15 +23,17 @@
 #define SENSOR_BW 40e3
 #define PULSE_WIDTH 130e-6	// 130 us
 
-#define IF_FILT_ORDER 11
+#define FILT_ATTENUATION 3	// dB
+
+#define IF_FILT_TRANSITION 2500
 #define IF_FILT_DECIMATION 4
 
 #define BB_DC_FILT_CUTOFF 1530
-#define BB_DC_FILT_ORDER 15	// Must be odd for type 1 filter
+#define BB_DC_FILT_TRANSITION 450
 #define BB_DC_FILT_DECIMATION 1
 
 #define BB_LP_FILT_CUTOFF 9800
-#define BB_LP_FILT_ORDER 5
+#define BB_LP_FILT_TRANSITION 1400
 #define BB_LP_FILT_DECIMATION 2
 
 using std::cout;
@@ -134,14 +136,14 @@ int main(int argc, char* argv[]) {
 	   --------------------------------------------*/
 
 	// Configure IF (complex LPF with frequency Xlation) and BB (HPF) filters
-	Filter<complex<float>> IFfilter(LPF, IF_FILT_ORDER, SAMP_RATE, IF_FILT_DECIMATION, SENSOR_BW/2,
+	Filter<complex<float>> IFfilter(LPF, SAMP_RATE, IF_FILT_DECIMATION, SENSOR_BW/2, IF_FILT_TRANSITION, FILT_ATTENUATION,
 			TUNE_FREQ_OFFSET);	// Includes frequency translation.
 															// The HackRF One samples have significant DC noise, so
 															// tuning the hardware to some offset frequency and translating
 															// the signal back to FFT center in the digital domain greatly
 															// improves SNR.
-	Filter<float> BB_DC_remove(HPF, BB_DC_FILT_ORDER, SAMP_RATE/IF_FILT_DECIMATION, BB_DC_FILT_DECIMATION, BB_DC_FILT_CUTOFF);
-	Filter<float> BB_LP_filter(LPF, BB_LP_FILT_ORDER, SAMP_RATE/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION), BB_LP_FILT_DECIMATION, BB_LP_FILT_CUTOFF);
+	Filter<float> BB_DC_remove(HPF, SAMP_RATE/IF_FILT_DECIMATION, BB_DC_FILT_DECIMATION, BB_DC_FILT_CUTOFF, BB_DC_FILT_TRANSITION, FILT_ATTENUATION);
+	Filter<float> BB_LP_filter(LPF, SAMP_RATE/(IF_FILT_DECIMATION*BB_DC_FILT_DECIMATION), BB_LP_FILT_DECIMATION, BB_LP_FILT_CUTOFF, BB_LP_FILT_TRANSITION, FILT_ATTENUATION);
 
 	// Create decoder for 345 data with estimated sample per symbol value for finding sync bits.
 	// The decoder computes more accurate SPS estimations per-message using sync bits

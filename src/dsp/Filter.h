@@ -11,13 +11,13 @@ enum filterType {LPF, HPF};
 template <typename T>
 class Filter {
 public:
-	Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const int& xlation_freq = 0);
+	Filter(const filterType& filt_t, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const unsigned int& transition_width, const unsigned int& attenuation, const int& xlation_freq = 0);
 	T* compute(const T& sample);
 private:
 	void computeLPFTaps(const unsigned int& samp_rate, const unsigned int& cutoff_freq);
 	void computeHPFTaps(const unsigned int& samp_rate, const unsigned int& cutoff_freq);
 	std::unique_ptr<SignalGenerator<T>> localOscillator;
-	const unsigned int num_taps;
+	unsigned int num_taps;
 	const unsigned int decimation;
 	std::unique_ptr<float[]> taps;
 	std::unique_ptr<T[]> shift_register;
@@ -27,8 +27,17 @@ private:
 
 
 template <typename T>
-Filter<T>::Filter(const filterType& filt_t, const unsigned int& num_taps, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const int& xlation_freq)
-	: num_taps(num_taps), decimation(decimation) {
+Filter<T>::Filter(const filterType& filt_t, const unsigned int& samp_rate, const unsigned int& decimation, const unsigned int& cutoff_freq, const unsigned int& transition_width, const unsigned int& attenuation, const int& xlation_freq)
+	: decimation(decimation) {
+
+	float normalized_transition = 1.0*transition_width/samp_rate;
+	float est_num_taps = attenuation/(22.0*normalized_transition);	// Harris Approximation
+
+	// Use odd taps (type 1 filter)
+	num_taps = ceil(est_num_taps);	// Try rounding up first
+	if ((num_taps % 2) == 0) {	// If rounding up does not result in an odd value, then round down
+		num_taps--;
+	}
 
 	shift_register = std::make_unique<T[]>(num_taps);
 	taps = std::make_unique<float[]>(num_taps);
